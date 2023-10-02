@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/xml"
 	"io"
 	"strings"
@@ -30,6 +31,7 @@ import (
 	"golang.org/x/crypto/openpgp/packet"
 
 	"go.linka.cloud/artifact-registry/pkg/buffer"
+	"go.linka.cloud/artifact-registry/pkg/codec"
 	"go.linka.cloud/artifact-registry/pkg/repository"
 )
 
@@ -59,7 +61,7 @@ type Repomd struct {
 	Data     []*RepoData `xml:"data"`
 }
 
-var _ repository.Repository[*Package] = (*repo)(nil)
+var _ repository.Provider = (*repo)(nil)
 
 type repo struct{}
 
@@ -67,7 +69,24 @@ func (r *repo) Name() string {
 	return "rpm"
 }
 
-func (r *repo) Index(ctx context.Context, key string, packages ...*Package) ([]repository.Artifact, error) {
+func (r *repo) Codec() repository.Codec {
+	return codec.CodecFuncs[repository.Artifact]{
+		Format: "json",
+		EncodeFunc: func(v repository.Artifact) ([]byte, error) {
+			return json.Marshal(v)
+		},
+		DecodeFunc: func(b []byte) (repository.Artifact, error) {
+			var v Package
+			if err := json.Unmarshal(b, &v); err != nil {
+				return nil, err
+			}
+			return &v, nil
+		},
+	}
+}
+
+func (r *repo) Index(ctx context.Context, key string, a ...repository.Artifact) ([]repository.Artifact, error) {
+	packages := repository.MustAs[*Package](a)
 	primary, primaryFile, err := buildPrimary(ctx, packages...)
 	if err != nil {
 		return nil, err

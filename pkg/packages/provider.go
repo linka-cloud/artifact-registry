@@ -16,7 +16,6 @@ package packages
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/gorilla/mux"
 
@@ -25,9 +24,10 @@ import (
 
 type Provider interface {
 	Register(m *mux.Router)
+	Repository() repository.Provider
 }
 
-type ProviderFactory func(ctx context.Context, backend string, key []byte) (Provider, error)
+type ProviderFactory func(ctx context.Context) (Provider, error)
 
 var providers = map[string]ProviderFactory{}
 
@@ -37,17 +37,12 @@ func Register(name string, factory ProviderFactory) {
 
 func Init(ctx context.Context, r *mux.Router, backend string, key []byte) error {
 	for k, v := range providers {
-		p, err := v(ctx, backend, key)
+		p, err := v(ctx)
 		if err != nil {
 			return err
 		}
 		sub := r.PathPrefix("/" + k).Subrouter()
-		sub.Use(func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				ctx := repository.ContextWithAuth(r.Context(), r)
-				next.ServeHTTP(w, r.WithContext(ctx))
-			})
-		})
+		sub.Use(repository.StorageMiddleware(p.Repository(), backend, key)("repo"))
 		p.Register(sub)
 	}
 	return nil

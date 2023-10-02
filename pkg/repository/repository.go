@@ -17,43 +17,50 @@ package repository
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
 
 	"github.com/gorilla/mux"
 	"github.com/opencontainers/go-digest"
+
+	"go.linka.cloud/artifact-registry/pkg/codec"
+	"go.linka.cloud/artifact-registry/pkg/repository/auth"
 )
+
+type Codec = codec.Codec[Artifact]
 
 type repoKey struct{}
 
-func Context[T Artifact, U Repository[T]](ctx context.Context, r Storage[T, U]) context.Context {
+func Context(ctx context.Context, r Repository) context.Context {
 	return context.WithValue(ctx, repoKey{}, r)
 }
 
-func FromContext[T Artifact, U Repository[T]](ctx context.Context) (Storage[T, U], bool) {
-	r, ok := ctx.Value(repoKey{}).(Storage[T, U])
+func FromContext(ctx context.Context) (Repository, bool) {
+	r, ok := ctx.Value(repoKey{}).(Repository)
 	return r, ok
 }
 
 type StorageMiddlewareFunc = func(repoVar string) mux.MiddlewareFunc
 
-func StorageMiddleware[T Artifact, U Repository[T]](ar U, backend string, key []byte) StorageMiddlewareFunc {
+func StorageMiddleware(ar Provider, backend string, key []byte) StorageMiddlewareFunc {
 	return func(repoVar string) mux.MiddlewareFunc {
 		return func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ctx := auth.Context(r.Context(), r)
 				name := mux.Vars(r)[repoVar]
 				if name == "" {
 					http.Error(w, "missing repository name", http.StatusBadRequest)
 					return
 				}
-				repo, err := NewStorage[T, U](r.Context(), backend, name, ar, key)
+				repo, err := NewStorage(ctx, backend, name, ar, key)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
 				defer repo.Close()
-				next.ServeHTTP(w, r.WithContext(Context[T, U](r.Context(), repo)))
+				next.ServeHTTP(w, r.WithContext(Context(ctx, repo)))
 			})
 		}
 	}
@@ -77,17 +84,18 @@ type ArtifactInfo interface {
 	Meta() []byte
 }
 
-type Repository[T Artifact] interface {
-	Index(ctx context.Context, priv string, artifacts ...T) ([]Artifact, error)
+type Provider interface {
+	Index(ctx context.Context, priv string, artifacts ...Artifact) ([]Artifact, error)
 	GenerateKeypair() (string, string, error)
 	KeyNames() (string, string)
+	Codec() Codec
 	Name() string
 }
 
-type Storage[T Artifact, U Repository[T]] interface {
+type Repository interface {
 	Stat(ctx context.Context, file string) (ArtifactInfo, error)
 	Open(ctx context.Context, name string) (io.ReadCloser, error)
-	Write(ctx context.Context, a T) error
+	Write(ctx context.Context, a Artifact) error
 	Delete(ctx context.Context, name string) error
 	ServeFile(w http.ResponseWriter, r *http.Request, name string) error
 	Key() string
@@ -164,4 +172,24 @@ func (i *info) Digest() digest.Digest {
 
 func (i *info) Meta() []byte {
 	return i.meta
+}
+
+func As[T Artifact](as []Artifact) ([]T, error) {
+	var packages []T
+	for _, v := range as {
+		pkg, ok := v.(T)
+		if !ok {
+			return nil, fmt.Errorf("invalid artifact type %T", v)
+		}
+		packages = append(packages, pkg)
+	}
+	return packages, nil
+}
+
+func MustAs[T Artifact](as []Artifact) []T {
+	packages, err := As[T](as)
+	if err != nil {
+		panic(err)
+	}
+	return packages
 }

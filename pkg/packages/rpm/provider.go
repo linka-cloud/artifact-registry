@@ -43,28 +43,28 @@ func init() {
 	packages.Register("rpm", newProvider)
 }
 
-func newProvider(_ context.Context, backend string, key []byte) (packages.Provider, error) {
-	return &provider{mdwl: repository.StorageMiddleware[*Package, *repo](&repo{}, backend, key)}, nil
+func newProvider(_ context.Context) (packages.Provider, error) {
+	return &provider{}, nil
 }
 
-type provider struct {
-	mdwl repository.StorageMiddlewareFunc
-}
+type provider struct{}
 
 func (p *provider) Register(r *mux.Router) {
-	r.Use(p.mdwl("repo"))
-	r.HandleFunc("/{repo:.+}.repo", p.repositoryConfig).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/"+RepositoryPublicKey, p.repositoryKey).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/upload", p.uploadPackage).Methods(http.MethodPut)
-	r.HandleFunc("/{repo:.+}/repodata/{filename}", p.repositoryFile).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/{filename}", p.downloadPackage).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/{filename}", p.deletePackage).Methods(http.MethodDelete)
+	r.HandleFunc("/{repo:.+}.repo", p.config).Methods(http.MethodGet)
+	r.HandleFunc("/{repo:.+}/upload", p.upload).Methods(http.MethodPut)
+	r.HandleFunc("/{repo:.+}/repodata/{filename}", p.repository).Methods(http.MethodGet)
+	r.HandleFunc("/{repo:.+}/{filename}", p.download).Methods(http.MethodGet)
+	r.HandleFunc("/{repo:.+}/{filename}", p.delete).Methods(http.MethodDelete)
 }
 
-func (p *provider) repositoryConfig(w http.ResponseWriter, r *http.Request) {
+func (p *provider) Repository() repository.Provider {
+	return &repo{}
+}
+
+func (p *provider) config(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	name := mux.Vars(r)["repo"]
-	if _, ok := repository.FromContext[*Package, *repo](ctx); !ok {
+	if _, ok := repository.FromContext(ctx); !ok {
 		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
 	}
@@ -82,24 +82,7 @@ func (p *provider) repositoryConfig(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(fmt.Sprintf(definition, strings.NewReplacer("/", "-").Replace(name), url, RepositoryPublicKey)))
 }
 
-func (p *provider) repositoryKey(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	repo, ok := repository.FromContext[*Package, *repo](ctx)
-	if !ok {
-		http.Error(w, "missing storage in context", http.StatusInternalServerError)
-		return
-	}
-	rc, err := repo.Open(ctx, RepositoryPublicKey)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rc.Close()
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	io.Copy(w, rc)
-}
-
-func (p *provider) uploadPackage(w http.ResponseWriter, r *http.Request) {
+func (p *provider) upload(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var (
@@ -112,7 +95,7 @@ func (p *provider) uploadPackage(w http.ResponseWriter, r *http.Request) {
 		reader, size = r.Body, r.ContentLength
 	}
 	defer reader.Close()
-	repo, ok := repository.FromContext[*Package, *repo](ctx)
+	repo, ok := repository.FromContext(ctx)
 	if !ok {
 		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
@@ -133,10 +116,10 @@ func (p *provider) uploadPackage(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (p *provider) downloadPackage(w http.ResponseWriter, r *http.Request) {
+func (p *provider) download(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	file := mux.Vars(r)["filename"]
-	repo, ok := repository.FromContext[*Package, *repo](ctx)
+	repo, ok := repository.FromContext(ctx)
 	if !ok {
 		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
@@ -151,10 +134,10 @@ func (p *provider) downloadPackage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *provider) deletePackage(w http.ResponseWriter, r *http.Request) {
+func (p *provider) delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	file := mux.Vars(r)["filename"]
-	repo, ok := repository.FromContext[*Package, *repo](ctx)
+	repo, ok := repository.FromContext(ctx)
 	if !ok {
 		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
@@ -169,10 +152,10 @@ func (p *provider) deletePackage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *provider) repositoryFile(w http.ResponseWriter, r *http.Request) {
+func (p *provider) repository(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	file := mux.Vars(r)["filename"]
-	repo, ok := repository.FromContext[*Package, *repo](ctx)
+	repo, ok := repository.FromContext(ctx)
 	if !ok {
 		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return

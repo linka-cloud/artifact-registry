@@ -12,23 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package repository
+package auth
 
 import (
 	"context"
 )
 
-type Auth interface {
+type Basic interface {
 	BasicAuth() (username, password string, ok bool)
 }
 
-type authKey struct{}
+type key struct{}
 
-func ContextWithAuth(ctx context.Context, a Auth) context.Context {
-	return context.WithValue(ctx, authKey{}, a)
+func Context(ctx context.Context, a Basic) context.Context {
+	return context.WithValue(ctx, key{}, a)
 }
 
-func authFromContext(ctx context.Context) Auth {
-	a, _ := ctx.Value(authKey{}).(Auth)
+func FromContext(ctx context.Context) Basic {
+	a, _ := ctx.Value(key{}).(Basic)
 	return a
 }

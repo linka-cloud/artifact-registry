@@ -42,6 +42,7 @@ import (
 
 	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
 	"go.linka.cloud/artifact-registry/pkg/crypt/aes"
+	auth2 "go.linka.cloud/artifact-registry/pkg/repository/auth"
 )
 
 const (
@@ -87,7 +88,7 @@ func copts(name string) oras.CopyOptions {
 }
 
 func client(ctx context.Context, host string) remote.Client {
-	a := authFromContext(ctx)
+	a := auth2.FromContext(ctx)
 	if a == nil {
 		return http.DefaultClient
 	}
@@ -117,18 +118,18 @@ func client(ctx context.Context, host string) remote.Client {
 	return c
 }
 
-type storage[T Artifact, U Repository[T]] struct {
+type storage struct {
 	host   string
 	name   string
 	repo   *remote.Repository
 	ref    string
-	ar     Repository[T]
+	prov   Provider
 	key    string
 	tmp    string
 	aesKey []byte
 }
 
-func NewStorage[T Artifact, U Repository[T]](ctx context.Context, host, name string, ar Repository[T], aesKey []byte) (Storage[T, U], error) {
+func NewStorage(ctx context.Context, host, name string, ar Provider, aesKey []byte) (Repository, error) {
 	name = host + "/" + strings.TrimSuffix(name, "/")
 	ref := name + ":" + ar.Name()
 	tmp, err := os.MkdirTemp(os.TempDir(), "lk-artifact-registry-"+ar.Name())
@@ -141,10 +142,10 @@ func NewStorage[T Artifact, U Repository[T]](ctx context.Context, host, name str
 	}
 	repo.Client = client(ctx, host)
 	repo.PlainHTTP = plainHTTP
-	r := &storage[T, U]{
+	r := &storage{
 		host:   host,
 		name:   name,
-		ar:     ar,
+		prov:   ar,
 		repo:   repo,
 		ref:    ref,
 		tmp:    tmp,
@@ -167,7 +168,7 @@ func NewStorage[T Artifact, U Repository[T]](ctx context.Context, host, name str
 	return r, nil
 }
 
-func (s *storage[T, U]) Stat(ctx context.Context, file string) (ArtifactInfo, error) {
+func (s *storage) Stat(ctx context.Context, file string) (ArtifactInfo, error) {
 	desc, err := s.find(ctx, file)
 	if err != nil {
 		return nil, err
@@ -176,7 +177,7 @@ func (s *storage[T, U]) Stat(ctx context.Context, file string) (ArtifactInfo, er
 	return &info{path: file, size: desc.Size, digest: desc.Digest, meta: desc.Data}, nil
 }
 
-func (s *storage[T, U]) Open(ctx context.Context, file string) (io.ReadCloser, error) {
+func (s *storage) Open(ctx context.Context, file string) (io.ReadCloser, error) {
 	desc, err := s.find(ctx, file)
 	if err != nil {
 		return nil, err
@@ -188,7 +189,7 @@ func (s *storage[T, U]) Open(ctx context.Context, file string) (io.ReadCloser, e
 	return rd, nil
 }
 
-func (s *storage[T, U]) Write(ctx context.Context, pkg T) error {
+func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 	store, err := file.New(s.tmp)
 	if err != nil {
 		return err
@@ -256,16 +257,16 @@ func (s *storage[T, U]) Write(ctx context.Context, pkg T) error {
 		ls = append(ls, v)
 	}
 	m.Layers = ls
-	return s.updateIndex(ctx, store, m, []T{pkg}, []ocispec.Descriptor{layer})
+	return s.updateIndex(ctx, store, m, []Artifact{pkg}, []ocispec.Descriptor{layer})
 }
 
-func (s *storage[T, U]) Delete(ctx context.Context, name string) error {
+func (s *storage) Delete(ctx context.Context, name string) error {
 	desc, err := s.find(ctx, name)
 	if err != nil {
 		return err
 	}
-	var pkg T
-	if err := json.Unmarshal(desc.Data, &pkg); err != nil {
+	pkg, err := s.prov.Codec().Decode(desc.Data)
+	if err != nil {
 		return err
 	}
 	repo := s.name + "/" + pkg.Name()
@@ -309,7 +310,7 @@ func (s *storage[T, U]) Delete(ctx context.Context, name string) error {
 	return s.updateIndex(ctx, store, m, nil, nil)
 }
 
-func (s *storage[T, U]) ServeFile(w http.ResponseWriter, r *http.Request, path string) error {
+func (s *storage) ServeFile(w http.ResponseWriter, r *http.Request, path string) error {
 	ctx := r.Context()
 	desc, err := s.find(ctx, path)
 	name := strings.Replace(path, "/", "-", -1)
@@ -329,16 +330,16 @@ func (s *storage[T, U]) ServeFile(w http.ResponseWriter, r *http.Request, path s
 	return err
 }
 
-func (s *storage[T, U]) Key() string {
+func (s *storage) Key() string {
 	return s.key
 }
 
-func (s *storage[T, U]) Close() error {
+func (s *storage) Close() error {
 	return os.RemoveAll(s.tmp)
 }
 
-func (s *storage[T, U]) updateIndex(ctx context.Context, store *file.Store, m ocispec.Manifest, pkgs []T, layers []ocispec.Descriptor) error {
-	pvn, pbn := s.ar.KeyNames()
+func (s *storage) updateIndex(ctx context.Context, store *file.Store, m ocispec.Manifest, pkgs []Artifact, layers []ocispec.Descriptor) error {
+	pvn, pbn := s.prov.KeyNames()
 	for i := range m.Layers {
 		v := m.Layers[i]
 		if n := v.Annotations[ocispec.AnnotationTitle]; n == pvn || n == pbn {
@@ -348,14 +349,14 @@ func (s *storage[T, U]) updateIndex(ctx context.Context, store *file.Store, m oc
 		if v.MediaType != s.MediaTypeArtifactLayer() {
 			continue
 		}
-		var p T
-		if err := json.Unmarshal(v.Data, &p); err != nil {
+		p, err := s.prov.Codec().Decode(v.Data)
+		if err != nil {
 			return err
 		}
 		pkgs = append(pkgs, p)
 		layers = append(layers, v)
 	}
-	files, err := s.ar.Index(ctx, s.key, pkgs...)
+	files, err := s.prov.Index(ctx, s.key, pkgs...)
 	if err != nil {
 		return err
 	}
@@ -392,12 +393,12 @@ func (s *storage[T, U]) updateIndex(ctx context.Context, store *file.Store, m oc
 	return nil
 }
 
-func (s *storage[T, U]) init(ctx context.Context) error {
+func (s *storage) init(ctx context.Context) error {
 	store, err := file.New(s.tmp)
 	if err != nil {
 		return err
 	}
-	priv, pub, err := s.ar.GenerateKeypair()
+	priv, pub, err := s.prov.GenerateKeypair()
 	if err != nil {
 		return err
 	}
@@ -407,7 +408,7 @@ func (s *storage[T, U]) init(ctx context.Context) error {
 		return err
 	}
 	var opts oras.PackManifestOptions
-	pvn, pbn := s.ar.KeyNames()
+	pvn, pbn := s.prov.KeyNames()
 	for _, v := range []Artifact{NewFile(pvn, enc), NewFile(pbn, []byte(pub))} {
 		l := ocispec.Descriptor{
 			MediaType: s.MediaTypeRegistryLayerMetadata(v.Name()),
@@ -437,8 +438,8 @@ func (s *storage[T, U]) init(ctx context.Context) error {
 	return nil
 }
 
-func (s *storage[T, U]) manifest(ctx context.Context) (m ocispec.Manifest, err error) {
-	desc, err := s.repo.Resolve(ctx, s.ar.Name())
+func (s *storage) manifest(ctx context.Context) (m ocispec.Manifest, err error) {
+	desc, err := s.repo.Resolve(ctx, s.prov.Name())
 	if err != nil {
 		return m, err
 	}
@@ -460,8 +461,8 @@ func (s *storage[T, U]) manifest(ctx context.Context) (m ocispec.Manifest, err e
 	return m, nil
 }
 
-func (s *storage[T, U]) fetchKey(ctx context.Context) error {
-	n, _ := s.ar.KeyNames()
+func (s *storage) fetchKey(ctx context.Context) error {
+	n, _ := s.prov.KeyNames()
 	desc, err := s.find(ctx, n)
 	if err != nil {
 		return err
@@ -487,7 +488,7 @@ func (s *storage[T, U]) fetchKey(ctx context.Context) error {
 	return nil
 }
 
-func (s *storage[T, U]) find(ctx context.Context, file string) (ocispec.Descriptor, error) {
+func (s *storage) find(ctx context.Context, file string) (ocispec.Descriptor, error) {
 	m, err := s.manifest(ctx)
 	if err != nil {
 		return ocispec.Descriptor{}, err
@@ -500,18 +501,18 @@ func (s *storage[T, U]) find(ctx context.Context, file string) (ocispec.Descript
 	return ocispec.Descriptor{}, fmt.Errorf("%s: %w", file, os.ErrNotExist)
 }
 
-func (s *storage[T, U]) ArtefactTypeRegistry() string {
-	return "application/vnd.lk.registry+" + s.ar.Name()
+func (s *storage) ArtefactTypeRegistry() string {
+	return "application/vnd.lk.registry+" + s.prov.Name()
 }
-func (s *storage[T, U]) MediaTypeArtifactConfig() string {
-	return "application/vnd.lk.registry.config.v1." + s.ar.Name() + "+json"
+func (s *storage) MediaTypeArtifactConfig() string {
+	return "application/vnd.lk.registry.config.v1." + s.prov.Name() + "+" + s.prov.Codec().Name()
 }
-func (s *storage[T, U]) MediaTypeRegistryLayerMetadata(name string) string {
+func (s *storage) MediaTypeRegistryLayerMetadata(name string) string {
 	if ext := filepath.Ext(name); ext != "" {
-		return "application/vnd.lk.registry.metadata.layer.v1." + s.ar.Name() + "+" + ext
+		return "application/vnd.lk.registry.metadata.layer.v1." + s.prov.Name() + "+" + ext
 	}
-	return "application/vnd.lk.registry.metadata.layer.v1." + s.ar.Name()
+	return "application/vnd.lk.registry.metadata.layer.v1." + s.prov.Name()
 }
-func (s *storage[T, U]) MediaTypeArtifactLayer() string {
-	return "application/vnd.lk.registry.layer.v1." + s.ar.Name()
+func (s *storage) MediaTypeArtifactLayer() string {
+	return "application/vnd.lk.registry.layer.v1." + s.prov.Name()
 }
