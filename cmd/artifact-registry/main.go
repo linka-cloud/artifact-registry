@@ -17,7 +17,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
-	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -84,7 +84,7 @@ func (w *wrapWriter) Write(b []byte) (int, error) {
 
 func run(ctx context.Context) error {
 	if key == "" {
-		return errors.New("key must be set")
+		return fmt.Errorf("environment variable $%s must be set", EnvKey)
 	}
 	logrus.Infof("intializing artifact registry using backend %s", backend)
 	r := mux.NewRouter()
