@@ -508,7 +508,7 @@ func (s *storage[T, U]) MediaTypeArtifactConfig() string {
 }
 func (s *storage[T, U]) MediaTypeRegistryLayerMetadata(name string) string {
 	if ext := filepath.Ext(name); ext != "" {
-		return "application/vnd.lk.registry.metadata.layer.v1." + s.ar.Name() + ext
+		return "application/vnd.lk.registry.metadata.layer.v1." + s.ar.Name() + "+" + ext
 	}
 	return "application/vnd.lk.registry.metadata.layer.v1." + s.ar.Name()
 }

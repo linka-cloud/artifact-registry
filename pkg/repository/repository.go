@@ -21,8 +21,43 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/gorilla/mux"
 	"github.com/opencontainers/go-digest"
 )
+
+type repoKey struct{}
+
+func Context[T Artifact, U Repository[T]](ctx context.Context, r Storage[T, U]) context.Context {
+	return context.WithValue(ctx, repoKey{}, r)
+}
+
+func FromContext[T Artifact, U Repository[T]](ctx context.Context) (Storage[T, U], bool) {
+	r, ok := ctx.Value(repoKey{}).(Storage[T, U])
+	return r, ok
+}
+
+type StorageMiddlewareFunc = func(repoVar string) mux.MiddlewareFunc
+
+func StorageMiddleware[T Artifact, U Repository[T]](ar U, backend string, key []byte) StorageMiddlewareFunc {
+	return func(repoVar string) mux.MiddlewareFunc {
+		return func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				name := mux.Vars(r)[repoVar]
+				if name == "" {
+					http.Error(w, "missing repository name", http.StatusBadRequest)
+					return
+				}
+				repo, err := NewStorage[T, U](r.Context(), backend, name, ar, key)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				defer repo.Close()
+				next.ServeHTTP(w, r.WithContext(Context[T, U](r.Context(), repo)))
+			})
+		}
+	}
+}
 
 type Artifact interface {
 	io.Reader
@@ -128,5 +163,5 @@ func (i *info) Digest() digest.Digest {
 }
 
 func (i *info) Meta() []byte {
-	return nil
+	return i.meta
 }

@@ -16,12 +16,15 @@ package packages
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/gorilla/mux"
+
+	"go.linka.cloud/artifact-registry/pkg/repository"
 )
 
 type Provider interface {
-	Route(m *mux.Router)
+	Register(m *mux.Router)
 }
 
 type ProviderFactory func(ctx context.Context, backend string, key []byte) (Provider, error)
@@ -38,7 +41,14 @@ func Init(ctx context.Context, r *mux.Router, backend string, key []byte) error 
 		if err != nil {
 			return err
 		}
-		p.Route(r.PathPrefix("/" + k).Subrouter())
+		sub := r.PathPrefix("/" + k).Subrouter()
+		sub.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ctx := repository.ContextWithAuth(r.Context(), r)
+				next.ServeHTTP(w, r.WithContext(ctx))
+			})
+		})
+		p.Register(sub)
 	}
 	return nil
 }

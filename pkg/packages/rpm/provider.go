@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/gorilla/mux"
 
@@ -40,37 +39,35 @@ gpgkey=%[2]s/%[3]s
 
 var _ packages.Provider = (*provider)(nil)
 
+func init() {
+	packages.Register("rpm", newProvider)
+}
+
 func newProvider(_ context.Context, backend string, key []byte) (packages.Provider, error) {
-	return &provider{backend: backend, key: key}, nil
+	return &provider{mdwl: repository.StorageMiddleware[*Package, *repo](&repo{}, backend, key)}, nil
 }
 
 type provider struct {
-	backend string
-	cache   sync.Map
-	key     []byte
+	mdwl repository.StorageMiddlewareFunc
 }
 
-func (p *provider) repo(ctx context.Context, name string) (repository.Storage[*Package, *repo], error) {
-	// if v, ok := p.cache.Load(name); ok {
-	// 	return v.(repository.Storage[*Package, *repo]), nil
-	// }
-	repo, err := repository.NewStorage[*Package, *repo](ctx, p.backend, name, &repo{}, p.key)
-	if err != nil {
-		return nil, err
-	}
-	// p.cache.Store(name, repo)
-	return repo, nil
+func (p *provider) Register(r *mux.Router) {
+	r.Use(p.mdwl("repo"))
+	r.HandleFunc("/{repo:.+}.repo", p.repositoryConfig).Methods(http.MethodGet)
+	r.HandleFunc("/{repo:.+}/"+RepositoryPublicKey, p.repositoryKey).Methods(http.MethodGet)
+	r.HandleFunc("/{repo:.+}/upload", p.uploadPackage).Methods(http.MethodPut)
+	r.HandleFunc("/{repo:.+}/repodata/{filename}", p.repositoryFile).Methods(http.MethodGet)
+	r.HandleFunc("/{repo:.+}/{filename}", p.downloadPackage).Methods(http.MethodGet)
+	r.HandleFunc("/{repo:.+}/{filename}", p.deletePackage).Methods(http.MethodDelete)
 }
 
 func (p *provider) repositoryConfig(w http.ResponseWriter, r *http.Request) {
-	ctx := repository.ContextWithAuth(r.Context(), r)
+	ctx := r.Context()
 	name := mux.Vars(r)["repo"]
-	repo, err := p.repo(ctx, name)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if _, ok := repository.FromContext[*Package, *repo](ctx); !ok {
+		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
 	}
-	defer repo.Close()
 	scheme := "http"
 	if r.TLS != nil {
 		scheme = "https"
@@ -86,14 +83,12 @@ func (p *provider) repositoryConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *provider) repositoryKey(w http.ResponseWriter, r *http.Request) {
-	ctx := repository.ContextWithAuth(r.Context(), r)
-	name := mux.Vars(r)["repo"]
-	repo, err := p.repo(ctx, name)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	ctx := r.Context()
+	repo, ok := repository.FromContext[*Package, *repo](ctx)
+	if !ok {
+		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
 	}
-	defer repo.Close()
 	rc, err := repo.Open(ctx, RepositoryPublicKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -105,8 +100,7 @@ func (p *provider) repositoryKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *provider) uploadPackage(w http.ResponseWriter, r *http.Request) {
-	ctx := repository.ContextWithAuth(r.Context(), r)
-	name := mux.Vars(r)["repo"]
+	ctx := r.Context()
 
 	var (
 		reader io.ReadCloser
@@ -118,12 +112,11 @@ func (p *provider) uploadPackage(w http.ResponseWriter, r *http.Request) {
 		reader, size = r.Body, r.ContentLength
 	}
 	defer reader.Close()
-	repo, err := p.repo(ctx, name)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	repo, ok := repository.FromContext[*Package, *repo](ctx)
+	if !ok {
+		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
 	}
-	defer repo.Close()
 	pkg, err := NewPackage(reader, size, repo.Key())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -141,15 +134,13 @@ func (p *provider) uploadPackage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *provider) downloadPackage(w http.ResponseWriter, r *http.Request) {
-	ctx := repository.ContextWithAuth(r.Context(), r)
-	name := mux.Vars(r)["repo"]
+	ctx := r.Context()
 	file := mux.Vars(r)["filename"]
-	repo, err := p.repo(ctx, name)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	repo, ok := repository.FromContext[*Package, *repo](ctx)
+	if !ok {
+		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
 	}
-	defer repo.Close()
 	if err := repo.ServeFile(w, r, file); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -161,15 +152,13 @@ func (p *provider) downloadPackage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *provider) deletePackage(w http.ResponseWriter, r *http.Request) {
-	ctx := repository.ContextWithAuth(r.Context(), r)
-	name := mux.Vars(r)["repo"]
+	ctx := r.Context()
 	file := mux.Vars(r)["filename"]
-	repo, err := p.repo(ctx, name)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	repo, ok := repository.FromContext[*Package, *repo](ctx)
+	if !ok {
+		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
 	}
-	defer repo.Close()
 	if err := repo.Delete(ctx, file); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -181,15 +170,13 @@ func (p *provider) deletePackage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *provider) repositoryFile(w http.ResponseWriter, r *http.Request) {
-	ctx := repository.ContextWithAuth(r.Context(), r)
-	name := mux.Vars(r)["repo"]
+	ctx := r.Context()
 	file := mux.Vars(r)["filename"]
-	repo, err := p.repo(ctx, name)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	repo, ok := repository.FromContext[*Package, *repo](ctx)
+	if !ok {
+		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
 	}
-	defer repo.Close()
 	if err := repo.ServeFile(w, r, file); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -198,17 +185,4 @@ func (p *provider) repositoryFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-}
-
-func (p *provider) Route(r *mux.Router) {
-	r.HandleFunc("/{repo:.+}.repo", p.repositoryConfig).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/"+RepositoryPublicKey, p.repositoryKey).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/upload", p.uploadPackage).Methods(http.MethodPut)
-	r.HandleFunc("/{repo:.+}/repodata/{filename}", p.repositoryFile).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/{filename}", p.downloadPackage).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/{filename}", p.deletePackage).Methods(http.MethodDelete)
-}
-
-func init() {
-	packages.Register("rpm", newProvider)
 }
