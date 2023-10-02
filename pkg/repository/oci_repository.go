@@ -320,7 +320,7 @@ func (s *storage[T, U]) Key() string {
 }
 
 func (s *storage[T, U]) Close() error {
-	return nil
+	return os.RemoveAll(s.tmp)
 }
 
 func (s *storage[T, U]) updateIndex(ctx context.Context, store *file.Store, m ocispec.Manifest, pkgs []T, layers []ocispec.Descriptor) error {

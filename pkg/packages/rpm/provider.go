@@ -56,7 +56,7 @@ func (p *provider) repositoryConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	_ = repo
+	defer repo.Close()
 	scheme := "http"
 	if r.TLS != nil {
 		scheme = "https"
@@ -79,6 +79,7 @@ func (p *provider) repositoryKey(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer repo.Close()
 	rc, err := repo.Open(ctx, RepositoryPublicKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -108,6 +109,7 @@ func (p *provider) uploadPackage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer repo.Close()
 	pkg, err := NewPackage(reader, size, repo.Key())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -133,6 +135,7 @@ func (p *provider) downloadPackage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer repo.Close()
 	if err := repo.ServeFile(w, r, file); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -152,6 +155,7 @@ func (p *provider) deletePackage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer repo.Close()
 	if err := repo.Delete(ctx, file); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -171,6 +175,7 @@ func (p *provider) repositoryFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer repo.Close()
 	if err := repo.ServeFile(w, r, file); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, err.Error(), http.StatusNotFound)
