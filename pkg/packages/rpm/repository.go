@@ -32,7 +32,7 @@ import (
 
 	"go.linka.cloud/artifact-registry/pkg/buffer"
 	"go.linka.cloud/artifact-registry/pkg/codec"
-	"go.linka.cloud/artifact-registry/pkg/repository"
+	"go.linka.cloud/artifact-registry/pkg/storage"
 )
 
 type RepoChecksum struct {
@@ -61,7 +61,7 @@ type Repomd struct {
 	Data     []*RepoData `xml:"data"`
 }
 
-var _ repository.Provider = (*repo)(nil)
+var _ storage.Repository = (*repo)(nil)
 
 type repo struct{}
 
@@ -69,13 +69,13 @@ func (r *repo) Name() string {
 	return "rpm"
 }
 
-func (r *repo) Codec() repository.Codec {
-	return codec.Funcs[repository.Artifact]{
+func (r *repo) Codec() storage.Codec {
+	return codec.Funcs[storage.Artifact]{
 		Format: "json",
-		EncodeFunc: func(v repository.Artifact) ([]byte, error) {
+		EncodeFunc: func(v storage.Artifact) ([]byte, error) {
 			return json.Marshal(v)
 		},
-		DecodeFunc: func(b []byte) (repository.Artifact, error) {
+		DecodeFunc: func(b []byte) (storage.Artifact, error) {
 			var v Package
 			if err := json.Unmarshal(b, &v); err != nil {
 				return nil, err
@@ -85,8 +85,8 @@ func (r *repo) Codec() repository.Codec {
 	}
 }
 
-func (r *repo) Index(ctx context.Context, key string, a ...repository.Artifact) ([]repository.Artifact, error) {
-	packages := repository.MustAs[*Package](a)
+func (r *repo) Index(ctx context.Context, key string, a ...storage.Artifact) ([]storage.Artifact, error) {
+	packages := storage.MustAs[*Package](a)
 	primary, primaryFile, err := buildPrimary(ctx, packages...)
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func (r *repo) Index(ctx context.Context, key string, a ...repository.Artifact) 
 }
 
 // https://docs.pulpproject.org/en/2.19/plugins/pulp_rpm/tech-reference/rpm.html#repomd-xml
-func buildRepomd(_ context.Context, priv string, data ...*RepoData) ([]repository.Artifact, error) {
+func buildRepomd(_ context.Context, priv string, data ...*RepoData) ([]storage.Artifact, error) {
 	var repomdContent bytes.Buffer
 	repomdContent.WriteString(xml.Header)
 	if err := encode(&repomdContent, &Repomd{
@@ -133,13 +133,13 @@ func buildRepomd(_ context.Context, priv string, data ...*RepoData) ([]repositor
 		return nil, err
 	}
 
-	return []repository.Artifact{
-		repository.NewFile("repomd.xml", repomdContent.Bytes()),
-		repository.NewFile("repomd.xml.asc", repomdAscContent.Bytes()),
+	return []storage.Artifact{
+		storage.NewFile("repomd.xml", repomdContent.Bytes()),
+		storage.NewFile("repomd.xml.asc", repomdAscContent.Bytes()),
 	}, nil
 }
 
-func buildPrimary(_ context.Context, packages ...*Package) (*RepoData, repository.Artifact, error) {
+func buildPrimary(_ context.Context, packages ...*Package) (*RepoData, storage.Artifact, error) {
 	type Version struct {
 		Epoch   string `xml:"epoch,attr"`
 		Version string `xml:"ver,attr"`
@@ -281,7 +281,7 @@ func buildPrimary(_ context.Context, packages ...*Package) (*RepoData, repositor
 }
 
 // https://docs.pulpproject.org/en/2.19/plugins/pulp_rpm/tech-reference/rpm.html#filelists-xml
-func buildFilelists(_ context.Context, packages ...*Package) (*RepoData, repository.Artifact, error) { //nolint:dupl
+func buildFilelists(_ context.Context, packages ...*Package) (*RepoData, storage.Artifact, error) { //nolint:dupl
 	type Version struct {
 		Epoch   string `xml:"epoch,attr"`
 		Version string `xml:"ver,attr"`
@@ -325,7 +325,7 @@ func buildFilelists(_ context.Context, packages ...*Package) (*RepoData, reposit
 	})
 }
 
-func newRepoData(filetype string, obj any) (*RepoData, repository.Artifact, error) {
+func newRepoData(filetype string, obj any) (*RepoData, storage.Artifact, error) {
 	content, _ := buffer.NewHashedBuffer()
 	gzw := gzip.NewWriter(content)
 	wc := &writtenCounter{}
@@ -347,7 +347,7 @@ func newRepoData(filetype string, obj any) (*RepoData, repository.Artifact, erro
 		return nil, nil, err
 	}
 	filename := filetype + ".xml.gz"
-	file := repository.NewFile(filename, data)
+	file := storage.NewFile(filename, data)
 
 	_, _, hashSHA256, _ := content.Sums()
 
@@ -371,7 +371,7 @@ func newRepoData(filetype string, obj any) (*RepoData, repository.Artifact, erro
 }
 
 // https://docs.pulpproject.org/en/2.19/plugins/pulp_rpm/tech-reference/rpm.html#other-xml
-func buildOther(ctx context.Context, packages ...*Package) (*RepoData, repository.Artifact, error) { //nolint:dupl
+func buildOther(ctx context.Context, packages ...*Package) (*RepoData, storage.Artifact, error) { //nolint:dupl
 	type Version struct {
 		Epoch   string `xml:"epoch,attr"`
 		Version string `xml:"ver,attr"`

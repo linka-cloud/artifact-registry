@@ -13,7 +13,7 @@ import (
 	"github.com/sassoftware/go-rpmutils"
 
 	"go.linka.cloud/artifact-registry/pkg/buffer"
-	"go.linka.cloud/artifact-registry/pkg/repository"
+	"go.linka.cloud/artifact-registry/pkg/storage"
 	"go.linka.cloud/artifact-registry/pkg/timeutil"
 	"go.linka.cloud/artifact-registry/pkg/validation"
 )
@@ -27,7 +27,7 @@ const (
 	sIXOTH = 0x1
 )
 
-var _ repository.Artifact = (*Package)(nil)
+var _ storage.Artifact = (*Package)(nil)
 
 // https://rpm-software-management.github.io/rpm/manual/spec.html
 // https://refspecs.linuxbase.org/LSB_3.1.0/LSB-Core-generic/LSB-Core-generic/pkgformat.html

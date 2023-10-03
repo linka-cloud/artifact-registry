@@ -19,12 +19,12 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"go.linka.cloud/artifact-registry/pkg/repository"
+	"go.linka.cloud/artifact-registry/pkg/storage"
 )
 
 type Provider interface {
 	Register(m *mux.Router)
-	Repository() repository.Provider
+	Repository() storage.Repository
 }
 
 type ProviderFactory func(ctx context.Context) (Provider, error)
@@ -46,7 +46,7 @@ func Init(ctx context.Context, r *mux.Router, backend string, key []byte, domain
 			subs = append(subs, r.Host(k+"."+domain).Subrouter())
 		}
 		for _, v := range subs {
-			v.Use(repository.StorageMiddleware(p.Repository(), backend, key)("repo"))
+			v.Use(storage.Middleware(p.Repository(), backend, key)("repo"))
 			p.Register(v)
 		}
 	}

@@ -24,7 +24,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"go.linka.cloud/artifact-registry/pkg/packages"
-	"go.linka.cloud/artifact-registry/pkg/repository"
+	"go.linka.cloud/artifact-registry/pkg/storage"
 )
 
 const definition = `[%[1]s]
@@ -55,14 +55,14 @@ func (p *provider) Register(r *mux.Router) {
 	r.HandleFunc("/{repo:.+}/{filename}", p.delete).Methods(http.MethodDelete)
 }
 
-func (p *provider) Repository() repository.Provider {
+func (p *provider) Repository() storage.Repository {
 	return &repo{}
 }
 
 func (p *provider) config(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	name := mux.Vars(r)["repo"]
-	if _, ok := repository.FromContext(ctx); !ok {
+	if _, ok := storage.FromContext(ctx); !ok {
 		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
 	}
@@ -93,18 +93,18 @@ func (p *provider) upload(w http.ResponseWriter, r *http.Request) {
 		reader, size = r.Body, r.ContentLength
 	}
 	defer reader.Close()
-	repo, ok := repository.FromContext(ctx)
+	s, ok := storage.FromContext(ctx)
 	if !ok {
 		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
 	}
-	pkg, err := NewPackage(reader, size, repo.Key())
+	pkg, err := NewPackage(reader, size, s.Key())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := repo.Write(ctx, pkg); err != nil {
-		repository.Error(w, err)
+	if err := s.Write(ctx, pkg); err != nil {
+		storage.Error(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -113,13 +113,13 @@ func (p *provider) upload(w http.ResponseWriter, r *http.Request) {
 func (p *provider) download(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	file := mux.Vars(r)["filename"]
-	repo, ok := repository.FromContext(ctx)
+	s, ok := storage.FromContext(ctx)
 	if !ok {
 		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
 	}
-	if err := repo.ServeFile(w, r, file); err != nil {
-		repository.Error(w, err)
+	if err := s.ServeFile(w, r, file); err != nil {
+		storage.Error(w, err)
 		return
 	}
 }
@@ -127,13 +127,13 @@ func (p *provider) download(w http.ResponseWriter, r *http.Request) {
 func (p *provider) delete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	file := mux.Vars(r)["filename"]
-	repo, ok := repository.FromContext(ctx)
+	s, ok := storage.FromContext(ctx)
 	if !ok {
 		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
 	}
-	if err := repo.Delete(ctx, file); err != nil {
-		repository.Error(w, err)
+	if err := s.Delete(ctx, file); err != nil {
+		storage.Error(w, err)
 		return
 	}
 }
@@ -141,13 +141,13 @@ func (p *provider) delete(w http.ResponseWriter, r *http.Request) {
 func (p *provider) repository(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	file := mux.Vars(r)["filename"]
-	repo, ok := repository.FromContext(ctx)
+	s, ok := storage.FromContext(ctx)
 	if !ok {
 		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
 	}
-	if err := repo.ServeFile(w, r, file); err != nil {
-		repository.Error(w, err)
+	if err := s.ServeFile(w, r, file); err != nil {
+		storage.Error(w, err)
 		return
 	}
 }

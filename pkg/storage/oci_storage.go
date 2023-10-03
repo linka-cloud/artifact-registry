@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package repository
+package storage
 
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,11 +25,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -38,115 +35,34 @@ import (
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/registry/remote"
-	"oras.land/oras-go/v2/registry/remote/auth"
-	"oras.land/oras-go/v2/registry/remote/errcode"
 
 	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
 	"go.linka.cloud/artifact-registry/pkg/crypt/aes"
-	auth2 "go.linka.cloud/artifact-registry/pkg/repository/auth"
 )
 
-const (
-	plainHTTP = false
-	// plainHTTP = true
-)
-
-var (
-	clientCache = cache2.New()
-	cache       = cache2.New()
-)
-
-func copts(name string) oras.CopyOptions {
-	return oras.CopyOptions{
-		CopyGraphOptions: oras.CopyGraphOptions{
-			Concurrency: runtime.NumCPU(),
-			PreCopy: func(ctx context.Context, desc ocispec.Descriptor) error {
-				logrus.WithFields(logrus.Fields{
-					"digest": desc.Digest.String(),
-					"size":   humanize.Bytes(uint64(desc.Size)),
-					"ref":    name,
-				}).Infof("uploading")
-				return nil
-			},
-			OnCopySkipped: func(ctx context.Context, desc ocispec.Descriptor) error {
-				logrus.WithFields(logrus.Fields{
-					"digest": desc.Digest.String(),
-					"size":   humanize.Bytes(uint64(desc.Size)),
-					"ref":    name,
-				}).Infof("skipped")
-				return nil
-			},
-			PostCopy: func(ctx context.Context, desc ocispec.Descriptor) error {
-				logrus.WithFields(logrus.Fields{
-					"digest": desc.Digest.String(),
-					"size":   humanize.Bytes(uint64(desc.Size)),
-					"ref":    name,
-				}).Infof("uploaded")
-				return nil
-			},
-		},
-	}
-}
-
-func client(ctx context.Context, host string) remote.Client {
-	a := auth2.FromContext(ctx)
-	if a == nil {
-		return http.DefaultClient
-	}
-	u, p, ok := a.BasicAuth()
-	if !ok {
-		return http.DefaultClient
-	}
-	h := sha256.New()
-	h.Write([]byte(u))
-	h.Write([]byte(p))
-	h.Write([]byte(host))
-	key := fmt.Sprintf("%x", h.Sum(nil))
-	if v, ok := clientCache.Get(key); ok {
-		clientCache.Set(key, v)
-		return v.(remote.Client)
-	}
-	c := &auth.Client{
-		// expectedHostAddress is of form ipaddr:port
-		Credential: auth.StaticCredential(host, auth.Credential{
-			Username: u,
-			Password: p,
-		}),
-		// Cache caches credentials for accessing the remote registry.
-		Cache: auth.NewCache(),
-	}
-	clientCache.Set(key, c)
-	return c
-}
+var cache = cache2.New()
 
 type storage struct {
 	host   string
 	name   string
-	repo   *remote.Repository
+	rrepo  *remote.Repository
 	ref    string
-	prov   Provider
+	repo   Repository
 	key    string
 	tmp    string
 	aesKey []byte
 }
 
-func NewStorage(ctx context.Context, host, name string, ar Provider, aesKey []byte) (Repository, error) {
+func NewStorage(ctx context.Context, host, name string, repo Repository, aesKey []byte) (Storage, error) {
 	name = host + "/" + strings.TrimSuffix(name, "/")
-	ref := name + ":" + ar.Name()
-	tmp, err := os.MkdirTemp(os.TempDir(), "lk-artifact-registry-"+ar.Name())
+	ref := name + ":" + repo.Name()
+	tmp, err := os.MkdirTemp(os.TempDir(), "lk-artifact-registry-"+repo.Name())
 	if err != nil {
 		return nil, err
 	}
-	repo, err := remote.NewRepository(name)
-	if err != nil {
-		return nil, err
-	}
-	repo.Client = client(ctx, host)
-	repo.PlainHTTP = plainHTTP
 	r := &storage{
 		host:   host,
 		name:   name,
-		prov:   ar,
 		repo:   repo,
 		ref:    ref,
 		tmp:    tmp,
@@ -157,6 +73,10 @@ func NewStorage(ctx context.Context, host, name string, ar Provider, aesKey []by
 			r.Close()
 		}
 	}()
+	r.rrepo, err = r.newRepository(ctx, name)
+	if err != nil {
+		return nil, err
+	}
 	if err = r.fetchKey(ctx); err == nil {
 		return r, nil
 	}
@@ -183,7 +103,7 @@ func (s *storage) Open(ctx context.Context, file string) (io.ReadCloser, error) 
 	if err != nil {
 		return nil, err
 	}
-	rd, err := s.repo.Blobs().Fetch(ctx, desc)
+	rd, err := s.rrepo.Blobs().Fetch(ctx, desc)
 	if err != nil {
 		return nil, err
 	}
@@ -235,12 +155,10 @@ func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 	if err := store.Tag(ctx, img, img.Digest.String()); err != nil {
 		return err
 	}
-	rrepo, err := remote.NewRepository(repo)
+	rrepo, err := s.newRepository(ctx, repo)
 	if err != nil {
 		return err
 	}
-	rrepo.Client = client(ctx, s.host)
-	rrepo.PlainHTTP = plainHTTP
 	img, err = oras.Copy(ctx, store, img.Digest.String(), rrepo, ref, copts(repo))
 	if err != nil {
 		return err
@@ -266,18 +184,16 @@ func (s *storage) Delete(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	pkg, err := s.prov.Codec().Decode(desc.Data)
+	pkg, err := s.repo.Codec().Decode(desc.Data)
 	if err != nil {
 		return err
 	}
 	repo := s.name + "/" + pkg.Name()
 	ref := strings.NewReplacer("~", "-", "+", "-").Replace(repo + ":" + pkg.Version())
-	rrepo, err := remote.NewRepository(repo)
+	rrepo, err := s.newRepository(ctx, repo)
 	if err != nil {
 		return err
 	}
-	rrepo.Client = client(ctx, s.host)
-	rrepo.PlainHTTP = plainHTTP
 	del := true
 	pdesc, err := rrepo.Resolve(ctx, ref)
 	if err != nil {
@@ -315,7 +231,7 @@ func (s *storage) ServeFile(w http.ResponseWriter, r *http.Request, path string)
 	ctx := r.Context()
 	desc, err := s.find(ctx, path)
 	name := strings.Replace(path, "/", "-", -1)
-	rd, err := s.repo.Blobs().Fetch(ctx, desc)
+	rd, err := s.rrepo.Blobs().Fetch(ctx, desc)
 	if err != nil {
 		return err
 	}
@@ -339,8 +255,18 @@ func (s *storage) Close() error {
 	return os.RemoveAll(s.tmp)
 }
 
+func (s *storage) newRepository(ctx context.Context, name string) (*remote.Repository, error) {
+	rrepo, err := remote.NewRepository(name)
+	if err != nil {
+		return nil, err
+	}
+	rrepo.Client = client(ctx, s.host)
+	rrepo.PlainHTTP = plainHTTP
+	return rrepo, nil
+}
+
 func (s *storage) updateIndex(ctx context.Context, store *file.Store, m ocispec.Manifest, pkgs []Artifact, layers []ocispec.Descriptor) error {
-	pvn, pbn := s.prov.KeyNames()
+	pvn, pbn := s.repo.KeyNames()
 	for i := range m.Layers {
 		v := m.Layers[i]
 		if n := v.Annotations[ocispec.AnnotationTitle]; n == pvn || n == pbn {
@@ -350,14 +276,14 @@ func (s *storage) updateIndex(ctx context.Context, store *file.Store, m ocispec.
 		if v.MediaType != s.MediaTypeArtifactLayer() {
 			continue
 		}
-		p, err := s.prov.Codec().Decode(v.Data)
+		p, err := s.repo.Codec().Decode(v.Data)
 		if err != nil {
 			return err
 		}
 		pkgs = append(pkgs, p)
 		layers = append(layers, v)
 	}
-	files, err := s.prov.Index(ctx, s.key, pkgs...)
+	files, err := s.repo.Index(ctx, s.key, pkgs...)
 	if err != nil {
 		return err
 	}
@@ -386,7 +312,7 @@ func (s *storage) updateIndex(ctx context.Context, store *file.Store, m ocispec.
 		return err
 	}
 	// TODO(adphi): update only manifest
-	img, err = oras.Copy(ctx, store, img.Digest.String(), s.repo, s.ref, copts(s.ref))
+	img, err = oras.Copy(ctx, store, img.Digest.String(), s.rrepo, s.ref, copts(s.ref))
 	if err != nil {
 		return err
 	}
@@ -399,7 +325,7 @@ func (s *storage) init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	priv, pub, err := s.prov.GenerateKeypair()
+	priv, pub, err := s.repo.GenerateKeypair()
 	if err != nil {
 		return err
 	}
@@ -409,7 +335,7 @@ func (s *storage) init(ctx context.Context) error {
 		return err
 	}
 	var opts oras.PackManifestOptions
-	pvn, pbn := s.prov.KeyNames()
+	pvn, pbn := s.repo.KeyNames()
 	for _, v := range []Artifact{NewFile(pvn, enc), NewFile(pbn, []byte(pub))} {
 		l := ocispec.Descriptor{
 			MediaType: s.MediaTypeRegistryLayerMetadata(v.Name()),
@@ -431,7 +357,7 @@ func (s *storage) init(ctx context.Context) error {
 	if err := store.Tag(ctx, img, img.Digest.String()); err != nil {
 		return err
 	}
-	img, err = oras.Copy(ctx, store, img.Digest.String(), s.repo, s.ref, copts(s.ref))
+	img, err = oras.Copy(ctx, store, img.Digest.String(), s.rrepo, s.ref, copts(s.ref))
 	if err != nil {
 		return err
 	}
@@ -440,7 +366,7 @@ func (s *storage) init(ctx context.Context) error {
 }
 
 func (s *storage) manifest(ctx context.Context) (m ocispec.Manifest, err error) {
-	desc, err := s.repo.Resolve(ctx, s.prov.Name())
+	desc, err := s.rrepo.Resolve(ctx, s.repo.Name())
 	if err != nil {
 		return m, err
 	}
@@ -449,7 +375,7 @@ func (s *storage) manifest(ctx context.Context) (m ocispec.Manifest, err error) 
 		cache.Set(desc.Digest.String(), v, cache2.WithTTL(5*time.Minute))
 		return v.(ocispec.Manifest), nil
 	}
-	b, err := s.repo.Manifests().Fetch(ctx, desc)
+	b, err := s.rrepo.Manifests().Fetch(ctx, desc)
 	if err != nil {
 		return m, err
 	}
@@ -463,7 +389,7 @@ func (s *storage) manifest(ctx context.Context) (m ocispec.Manifest, err error) 
 }
 
 func (s *storage) fetchKey(ctx context.Context) error {
-	n, _ := s.prov.KeyNames()
+	n, _ := s.repo.KeyNames()
 	desc, err := s.find(ctx, n)
 	if err != nil {
 		return err
@@ -472,7 +398,7 @@ func (s *storage) fetchKey(ctx context.Context) error {
 		s.key = v.(string)
 		return nil
 	}
-	rd, err := s.repo.Blobs().Fetch(ctx, desc)
+	rd, err := s.rrepo.Blobs().Fetch(ctx, desc)
 	if err != nil {
 		return err
 	}
@@ -503,41 +429,17 @@ func (s *storage) find(ctx context.Context, file string) (ocispec.Descriptor, er
 }
 
 func (s *storage) ArtefactTypeRegistry() string {
-	return "application/vnd.lk.registry+" + s.prov.Name()
+	return "application/vnd.lk.registry+" + s.repo.Name()
 }
 func (s *storage) MediaTypeArtifactConfig() string {
-	return "application/vnd.lk.registry.config.v1." + s.prov.Name() + "+" + s.prov.Codec().Name()
+	return "application/vnd.lk.registry.config.v1." + s.repo.Name() + "+" + s.repo.Codec().Name()
 }
 func (s *storage) MediaTypeRegistryLayerMetadata(name string) string {
 	if ext := filepath.Ext(name); ext != "" {
-		return "application/vnd.lk.registry.metadata.layer.v1." + s.prov.Name() + "+" + ext
+		return "application/vnd.lk.registry.metadata.layer.v1." + s.repo.Name() + "+" + ext
 	}
-	return "application/vnd.lk.registry.metadata.layer.v1." + s.prov.Name()
+	return "application/vnd.lk.registry.metadata.layer.v1." + s.repo.Name()
 }
 func (s *storage) MediaTypeArtifactLayer() string {
-	return "application/vnd.lk.registry.layer.v1." + s.prov.Name()
-}
-
-func IsErrorCode(err error, code string) bool {
-	var ec errcode.Error
-	return errors.As(err, &ec) && ec.Code == code
-}
-
-func ErrCode(err error) int {
-	var ec *errcode.ErrorResponse
-	if errors.As(err, &ec) {
-		return ec.StatusCode
-	}
-	return http.StatusInternalServerError
-}
-
-func Error(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, os.ErrExist):
-		http.Error(w, err.Error(), http.StatusConflict)
-	case errors.Is(err, os.ErrNotExist):
-		http.Error(w, err.Error(), http.StatusNotFound)
-	default:
-		http.Error(w, err.Error(), ErrCode(err))
-	}
+	return "application/vnd.lk.registry.layer.v1." + s.repo.Name()
 }
