@@ -33,12 +33,15 @@ const (
 	EnvAddr    = "ARTIFACT_REGISTRY_ADDRESS"
 	EnvBackend = "ARTIFACT_REGISTRY_BACKEND"
 	EnvKey     = "ARTIFACT_REGISTRY_KEY"
+	EnvDomain  = "ARTIFACT_REGISTRY_DOMAIN"
 )
 
 var (
 	addr = ":9887"
 	// backend = "192.168.10.11:5000"
 	backend = "docker.io"
+
+	domain = ""
 
 	key = ""
 
@@ -57,6 +60,7 @@ func main() {
 	cmd.Flags().StringVar(&addr, "addr", envDefault(EnvAddr, addr), "address to listen on [$"+EnvAddr+"]")
 	cmd.Flags().StringVar(&backend, "backend", envDefault(EnvBackend, backend), "registry backend [$"+EnvBackend+"]")
 	cmd.Flags().StringVar(&key, "key", envDefault(EnvKey, key), "key to encrypt the repositories keys [$"+EnvKey+"]")
+	cmd.Flags().StringVar(&domain, "domain", envDefault(EnvDomain, domain), "domain to use to serve the repositories as subdomains [$"+EnvDomain+"]")
 	if err := cmd.Execute(); err != nil {
 		logrus.Fatal(err)
 	}
@@ -111,7 +115,7 @@ func run(ctx context.Context) error {
 	})
 	h := sha256.New()
 	h.Write([]byte(key))
-	if err := packages.Init(ctx, r, backend, h.Sum(nil)); err != nil {
+	if err := packages.Init(ctx, r, backend, h.Sum(nil), domain); err != nil {
 		return err
 	}
 	logrus.Infof("starting server at %s", addr)

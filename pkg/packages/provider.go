@@ -35,15 +35,20 @@ func Register(name string, factory ProviderFactory) {
 	providers[name] = factory
 }
 
-func Init(ctx context.Context, r *mux.Router, backend string, key []byte) error {
+func Init(ctx context.Context, r *mux.Router, backend string, key []byte, domain string) error {
 	for k, v := range providers {
 		p, err := v(ctx)
 		if err != nil {
 			return err
 		}
-		sub := r.PathPrefix("/" + k).Subrouter()
-		sub.Use(repository.StorageMiddleware(p.Repository(), backend, key)("repo"))
-		p.Register(sub)
+		subs := []*mux.Router{r.PathPrefix("/" + k).Subrouter()}
+		if domain != "" {
+			subs = append(subs, r.Host(k+"."+domain).Subrouter())
+		}
+		for _, v := range subs {
+			v.Use(repository.StorageMiddleware(p.Repository(), backend, key)("repo"))
+			p.Register(v)
+		}
 	}
 	return nil
 }

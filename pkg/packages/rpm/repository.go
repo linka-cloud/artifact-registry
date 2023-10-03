@@ -70,7 +70,7 @@ func (r *repo) Name() string {
 }
 
 func (r *repo) Codec() repository.Codec {
-	return codec.CodecFuncs[repository.Artifact]{
+	return codec.Funcs[repository.Artifact]{
 		Format: "json",
 		EncodeFunc: func(v repository.Artifact) ([]byte, error) {
 			return json.Marshal(v)

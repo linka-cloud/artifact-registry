@@ -20,20 +20,20 @@ type Codec[T any] interface {
 	Name() string
 }
 
-type CodecFuncs[T any] struct {
+type Funcs[T any] struct {
 	Format     string
 	EncodeFunc func(v T) ([]byte, error)
 	DecodeFunc func(b []byte) (T, error)
 }
 
-func (c CodecFuncs[T]) Encode(a T) ([]byte, error) {
+func (c Funcs[T]) Encode(a T) ([]byte, error) {
 	return c.EncodeFunc(a)
 }
 
-func (c CodecFuncs[T]) Decode(b []byte) (T, error) {
+func (c Funcs[T]) Decode(b []byte) (T, error) {
 	return c.DecodeFunc(b)
 }
 
-func (c CodecFuncs[T]) Name() string {
+func (c Funcs[T]) Name() string {
 	return c.Format
 }
