@@ -16,11 +16,9 @@ package rpm
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -106,11 +104,7 @@ func (p *provider) upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := repo.Write(ctx, pkg); err != nil {
-		if errors.Is(err, os.ErrExist) {
-			http.Error(w, err.Error(), http.StatusConflict)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		repository.Error(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -125,11 +119,7 @@ func (p *provider) download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := repo.ServeFile(w, r, file); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		repository.Error(w, err)
 		return
 	}
 }
@@ -143,11 +133,7 @@ func (p *provider) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := repo.Delete(ctx, file); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		repository.Error(w, err)
 		return
 	}
 }
@@ -161,11 +147,7 @@ func (p *provider) repository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := repo.ServeFile(w, r, file); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		repository.Error(w, err)
 		return
 	}
 }

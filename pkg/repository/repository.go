@@ -56,7 +56,7 @@ func StorageMiddleware(ar Provider, backend string, key []byte) StorageMiddlewar
 				}
 				repo, err := NewStorage(ctx, backend, name, ar, key)
 				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
+					Error(w, err)
 					return
 				}
 				defer repo.Close()

@@ -39,6 +39,7 @@ import (
 	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
+	"oras.land/oras-go/v2/registry/remote/errcode"
 
 	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
 	"go.linka.cloud/artifact-registry/pkg/crypt/aes"
@@ -515,4 +516,28 @@ func (s *storage) MediaTypeRegistryLayerMetadata(name string) string {
 }
 func (s *storage) MediaTypeArtifactLayer() string {
 	return "application/vnd.lk.registry.layer.v1." + s.prov.Name()
+}
+
+func IsErrorCode(err error, code string) bool {
+	var ec errcode.Error
+	return errors.As(err, &ec) && ec.Code == code
+}
+
+func ErrCode(err error) int {
+	var ec *errcode.ErrorResponse
+	if errors.As(err, &ec) {
+		return ec.StatusCode
+	}
+	return http.StatusInternalServerError
+}
+
+func Error(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, os.ErrExist):
+		http.Error(w, err.Error(), http.StatusConflict)
+	case errors.Is(err, os.ErrNotExist):
+		http.Error(w, err.Error(), http.StatusNotFound)
+	default:
+		http.Error(w, err.Error(), ErrCode(err))
+	}
 }
