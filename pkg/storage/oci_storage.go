@@ -234,6 +234,9 @@ func (s *storage) Delete(ctx context.Context, name string) error {
 }
 
 func (s *storage) ServeFile(w http.ResponseWriter, r *http.Request, path string) error {
+	if k, _ := s.repo.KeyNames(); path == k || path == "" {
+		return fmt.Errorf("%s: %w", path, os.ErrNotExist)
+	}
 	ctx := r.Context()
 	desc, err := s.find(ctx, path)
 	name := filepath.Base(path)
