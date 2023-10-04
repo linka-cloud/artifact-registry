@@ -17,9 +17,12 @@ package storage
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"runtime"
+	"sync"
+	"time"
 
 	"github.com/dustin/go-humanize"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -29,22 +32,25 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 
 	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
+	"go.linka.cloud/artifact-registry/pkg/logger"
 	auth2 "go.linka.cloud/artifact-registry/pkg/storage/auth"
 )
 
 const (
-	plainHTTP = false
-	// plainHTTP = true
+// plainHTTP = false
+// plainHTTP = true
 )
 
 var clientCache = cache2.New()
 
 func copts(name string) oras.CopyOptions {
+	var times sync.Map
 	return oras.CopyOptions{
 		CopyGraphOptions: oras.CopyGraphOptions{
 			Concurrency: runtime.NumCPU(),
 			PreCopy: func(ctx context.Context, desc ocispec.Descriptor) error {
-				logrus.WithFields(logrus.Fields{
+				times.Store(desc.Digest.String(), time.Now())
+				logger.C(ctx).WithFields(logrus.Fields{
 					"digest": desc.Digest.String(),
 					"size":   humanize.Bytes(uint64(desc.Size)),
 					"ref":    name,
@@ -52,18 +58,23 @@ func copts(name string) oras.CopyOptions {
 				return nil
 			},
 			OnCopySkipped: func(ctx context.Context, desc ocispec.Descriptor) error {
-				logrus.WithFields(logrus.Fields{
+				logger.C(ctx).WithFields(logrus.Fields{
 					"digest": desc.Digest.String(),
 					"size":   humanize.Bytes(uint64(desc.Size)),
 					"ref":    name,
-				}).Infof("skipped")
+				}).Infof("already exists")
 				return nil
 			},
 			PostCopy: func(ctx context.Context, desc ocispec.Descriptor) error {
-				logrus.WithFields(logrus.Fields{
-					"digest": desc.Digest.String(),
-					"size":   humanize.Bytes(uint64(desc.Size)),
-					"ref":    name,
+				var dur time.Duration
+				if v, ok := times.Load(desc.Digest.String()); ok {
+					dur = time.Since(v.(time.Time))
+				}
+				logger.C(ctx).WithFields(logrus.Fields{
+					"digest":   desc.Digest.String(),
+					"size":     humanize.Bytes(uint64(desc.Size)),
+					"ref":      name,
+					"duration": dur,
 				}).Infof("uploaded")
 				return nil
 			},
@@ -71,7 +82,7 @@ func copts(name string) oras.CopyOptions {
 	}
 }
 
-func client(ctx context.Context, host string) remote.Client {
+func (s *storage) client(ctx context.Context, host string) remote.Client {
 	a := auth2.FromContext(ctx)
 	if a == nil {
 		return http.DefaultClient
@@ -90,6 +101,13 @@ func client(ctx context.Context, host string) remote.Client {
 		return v.(remote.Client)
 	}
 	c := &auth.Client{
+		Client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: s.opts.insecure,
+				},
+			},
+		},
 		// expectedHostAddress is of form ipaddr:port
 		Credential: auth.StaticCredential(host, auth.Credential{
 			Username: u,

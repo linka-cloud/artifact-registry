@@ -20,16 +20,18 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"go.linka.cloud/artifact-registry/pkg/logger"
 	"go.linka.cloud/artifact-registry/pkg/packages"
+	"go.linka.cloud/artifact-registry/pkg/storage"
 )
 
 const (
@@ -48,11 +50,27 @@ var (
 
 	key = ""
 
+	noHTTPS = false
+
+	insecure = false
+
+	tagPerArtifact = false
+
 	cmd = &cobra.Command{
 		Use:          "artifact-registry",
 		SilenceUsage: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := run(cmd.Context()); err != nil {
+			var opts []storage.Option
+			if noHTTPS {
+				opts = append(opts, storage.WithPlainHTTP())
+			}
+			if insecure {
+				opts = append(opts, storage.WithInsecure())
+			}
+			if tagPerArtifact {
+				opts = append(opts, storage.WithArtifactTags())
+			}
+			if err := run(cmd.Context(), opts...); err != nil {
 				logrus.Fatal(err)
 			}
 		},
@@ -64,6 +82,9 @@ func main() {
 	cmd.Flags().StringVar(&backend, "backend", envDefault(EnvBackend, backend), "registry backend [$"+EnvBackend+"]")
 	cmd.Flags().StringVar(&key, "key", envDefault(EnvKey, key), "key to encrypt the repositories keys [$"+EnvKey+"]")
 	cmd.Flags().StringVar(&domain, "domain", envDefault(EnvDomain, domain), "domain to use to serve the repositories as subdomains [$"+EnvDomain+"]")
+	cmd.Flags().BoolVar(&noHTTPS, "no-https", noHTTPS, "disable backend registry client https")
+	cmd.Flags().BoolVar(&insecure, "insecure", insecure, "disable backend registry client tls verification")
+	cmd.Flags().BoolVar(&tagPerArtifact, "tag-artifacts", tagPerArtifact, "tag artifacts manifests")
 	if err := cmd.Execute(); err != nil {
 		logrus.Fatal(err)
 	}
@@ -96,48 +117,55 @@ func (w *wrapWriter) Write(b []byte) (int, error) {
 	return n, nil
 }
 
-func run(ctx context.Context) error {
+func run(ctx context.Context, opts ...storage.Option) error {
+	ctx = storage.WithOptions(ctx, opts...)
 	if key == "" {
 		return fmt.Errorf("environment variable $%s must be set", EnvKey)
 	}
 	logrus.Infof("intializing artifact registry using backend %s", backend)
-	mux := mux.NewRouter()
+	router := mux.NewRouter()
 	k := sha256.Sum256([]byte(key))
-	if err := packages.Init(ctx, mux, backend, k[:], domain); err != nil {
+	if err := packages.Init(ctx, router, backend, k[:], domain); err != nil {
 		return err
 	}
-	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		wrap := wrap(w)
-		start := time.Now()
-		mux.ServeHTTP(wrap, r)
-		time.Since(start)
-		status := wrap.status
-		if status == 0 {
-			status = 200
-		}
-		log := logrus.WithFields(logrus.Fields{
-			"method":     r.Method,
-			"path":       r.URL.Path,
-			"remote":     r.RemoteAddr,
-			"duration":   time.Since(start),
-			"status":     http.StatusText(status),
-			"statusCode": status,
-			"size":       wrap.size,
-			"userAgent":  r.UserAgent(),
-		})
-		if domain != "" {
-			log = log.WithField("repo", strings.Split(r.Host, ".")[0])
-		} else {
-			log = log.WithField("repo", strings.Split(r.URL.Path, "/")[0])
-		}
-		if status < 400 {
-			log.Info("")
-		} else {
-			log.Error(wrap.body.String())
-		}
-	})
+	s := http.Server{
+		BaseContext: func(lis net.Listener) context.Context {
+			return ctx
+		},
+		Addr: addr,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			wrap := wrap(w)
+			start := time.Now()
+			log := logrus.WithFields(logrus.Fields{
+				"method":    r.Method,
+				"path":      r.URL.Path,
+				"remote":    r.RemoteAddr,
+				"userAgent": r.UserAgent(),
+			})
+			if u, _, ok := r.BasicAuth(); ok {
+				log = log.WithField("user", u)
+			}
+			time.Since(start)
+			router.ServeHTTP(wrap, r.WithContext(logger.Set(r.Context(), log)))
+			log = log.WithFields(logrus.Fields{
+				"duration":     time.Since(start),
+				"status":       http.StatusText(wrap.status),
+				"statusCode":   wrap.status,
+				"responseSize": wrap.size,
+			})
+			if wrap.status == 0 {
+				wrap.status = 200
+			}
+			if wrap.status < 400 {
+				log.Info("")
+			} else {
+				log.Error(wrap.body.String())
+			}
+		}),
+		// TODO(adphi): tls
+	}
 	logrus.Infof("starting server at %s", addr)
-	if err := http.ListenAndServe(addr, h); err != nil {
+	if err := s.ListenAndServe(); err != nil {
 		return err
 	}
 	return nil

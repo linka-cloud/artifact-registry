@@ -19,6 +19,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"go.linka.cloud/artifact-registry/pkg/logger"
 	"go.linka.cloud/artifact-registry/pkg/storage/auth"
 )
 
@@ -34,6 +35,7 @@ func Middleware(ar Repository, backend string, key []byte) MiddlewareFunc {
 					http.Error(w, "missing repository name", http.StatusBadRequest)
 					return
 				}
+				ctx = logger.Set(ctx, logger.C(ctx).WithField("repo", name).WithField("type", ar.Name()))
 				s, err := NewStorage(ctx, backend, name, ar, key)
 				if err != nil {
 					Error(w, err)

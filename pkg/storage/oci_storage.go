@@ -30,7 +30,6 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/errdef"
@@ -38,11 +37,13 @@ import (
 
 	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
 	"go.linka.cloud/artifact-registry/pkg/crypt/aes"
+	"go.linka.cloud/artifact-registry/pkg/logger"
 )
 
 var cache = cache2.New()
 
 type storage struct {
+	opts   options
 	host   string
 	name   string
 	rrepo  *remote.Repository
@@ -67,6 +68,7 @@ func NewStorage(ctx context.Context, host, name string, repo Repository, aesKey 
 		ref:    ref,
 		tmp:    tmp,
 		aesKey: aesKey,
+		opts:   opts(ctx),
 	}
 	defer func() {
 		if err != nil {
@@ -90,6 +92,7 @@ func NewStorage(ctx context.Context, host, name string, repo Repository, aesKey 
 }
 
 func (s *storage) Stat(ctx context.Context, file string) (ArtifactInfo, error) {
+	logger.C(ctx).Infof("stat %s", file)
 	desc, err := s.find(ctx, file)
 	if err != nil {
 		return nil, err
@@ -99,6 +102,7 @@ func (s *storage) Stat(ctx context.Context, file string) (ArtifactInfo, error) {
 }
 
 func (s *storage) Open(ctx context.Context, file string) (io.ReadCloser, error) {
+	logger.C(ctx).Infof("downloading %s", file)
 	desc, err := s.find(ctx, file)
 	if err != nil {
 		return nil, err
@@ -111,6 +115,10 @@ func (s *storage) Open(ctx context.Context, file string) (io.ReadCloser, error) 
 }
 
 func (s *storage) Write(ctx context.Context, pkg Artifact) error {
+	log := logger.C(ctx).WithField("artifact", pkg.Name())
+	ctx = logger.Set(ctx, log)
+
+	log.Infof("uploading %s", pkg.Path())
 	if prv, pb := s.repo.KeyNames(); pkg.Path() == prv || pkg.Path() == pb {
 		return fmt.Errorf("%s: %w", pkg.Path(), os.ErrExist)
 	}
@@ -153,18 +161,20 @@ func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 	if err != nil {
 		return err
 	}
-	repo := s.artifactName(pkg)
-	ref := strings.NewReplacer("~", "-", "+", "-").Replace(repo + ":" + pkg.Version())
-	if err := store.Tag(ctx, img, img.Digest.String()); err != nil {
-		return err
-	}
-	rrepo, err := s.newRepository(ctx, repo)
-	if err != nil {
-		return err
-	}
-	img, err = oras.Copy(ctx, store, img.Digest.String(), rrepo, ref, copts(repo))
-	if err != nil {
-		return err
+	if s.opts.artifactTags {
+		repo := s.artifactName(pkg)
+		ref := strings.NewReplacer("~", "-", "+", "-").Replace(repo + ":" + pkg.Version())
+		if err := store.Tag(ctx, img, img.Digest.String()); err != nil {
+			return err
+		}
+		rrepo, err := s.newRepository(ctx, repo)
+		if err != nil {
+			return err
+		}
+		img, err = oras.Copy(ctx, store, img.Digest.String(), rrepo, ref, copts(repo))
+		if err != nil {
+			return err
+		}
 	}
 	m, err := s.manifest(ctx)
 	if err != nil {
@@ -173,7 +183,7 @@ func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 	var ls []ocispec.Descriptor
 	for _, v := range m.Layers {
 		if v.Annotations[ocispec.AnnotationTitle] == pkg.Path() {
-			logrus.Infof("updating layer %s (%s-", pkg.Path(), v.Digest)
+			logger.C(ctx).Infof("updating layer %s (%s)", pkg.Path(), v.Digest)
 			continue
 		}
 		ls = append(ls, v)
@@ -183,6 +193,7 @@ func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 }
 
 func (s *storage) Delete(ctx context.Context, name string) error {
+	logger.C(ctx).Infof("deleting %s", name)
 	if prv, pb := s.repo.KeyNames(); name == prv || name == pb {
 		return fmt.Errorf("%s: %w", name, os.ErrNotExist)
 	}
@@ -220,7 +231,7 @@ func (s *storage) Delete(ctx context.Context, name string) error {
 	var ls []ocispec.Descriptor
 	for _, v := range m.Layers {
 		if v.Annotations[ocispec.AnnotationTitle] == pkg.Path() {
-			logrus.Infof("updating layer %s (%s-", pkg.Path(), v.Digest)
+			logger.C(ctx).Infof("updating layer %s (%s-", pkg.Path(), v.Digest)
 			continue
 		}
 		ls = append(ls, v)
@@ -234,6 +245,7 @@ func (s *storage) Delete(ctx context.Context, name string) error {
 }
 
 func (s *storage) Artifacts(ctx context.Context) ([]Artifact, error) {
+	logger.C(ctx).Infof("listing artifacts")
 	m, err := s.manifest(ctx)
 	if err != nil {
 		return nil, err
@@ -257,6 +269,8 @@ func (s *storage) ServeFile(w http.ResponseWriter, r *http.Request, path string)
 		return fmt.Errorf("%s: %w", path, os.ErrNotExist)
 	}
 	ctx := r.Context()
+
+	logger.C(ctx).Infof("serving %s", path)
 	desc, err := s.find(ctx, path)
 	name := filepath.Base(path)
 	rd, err := s.rrepo.Blobs().Fetch(ctx, desc)
@@ -300,8 +314,8 @@ func (s *storage) newRepository(ctx context.Context, name string) (*remote.Repos
 	if err != nil {
 		return nil, err
 	}
-	rrepo.Client = client(ctx, s.host)
-	rrepo.PlainHTTP = plainHTTP
+	rrepo.Client = s.client(ctx, s.host)
+	rrepo.PlainHTTP = s.opts.plainHTTP
 	return rrepo, nil
 }
 
@@ -356,7 +370,7 @@ func (s *storage) updateIndex(ctx context.Context, store *file.Store, m ocispec.
 	if err != nil {
 		return err
 	}
-	logrus.Infof("uploaded %s", s.ref)
+	logger.C(ctx).Infof("uploaded %s", s.ref)
 	return nil
 }
 
@@ -401,7 +415,7 @@ func (s *storage) init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	logrus.Infof("storage inititalized %s", s.ref)
+	logger.C(ctx).Infof("storage initialized %s", s.ref)
 	return nil
 }
 
@@ -415,6 +429,7 @@ func (s *storage) manifest(ctx context.Context) (m ocispec.Manifest, err error) 
 		cache.Set(desc.Digest.String(), v, cache2.WithTTL(5*time.Minute))
 		return v.(ocispec.Manifest), nil
 	}
+	logger.C(ctx).Infof("retrieve manifest %s", desc.Digest.String())
 	b, err := s.rrepo.Manifests().Fetch(ctx, desc)
 	if err != nil {
 		return m, err
