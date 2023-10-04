@@ -66,6 +66,7 @@ type Storage interface {
 	Open(ctx context.Context, name string) (io.ReadCloser, error)
 	Write(ctx context.Context, a Artifact) error
 	Delete(ctx context.Context, name string) error
+	Artifacts(ctx context.Context) ([]Artifact, error)
 	ServeFile(w http.ResponseWriter, r *http.Request, name string) error
 	Key() string
 	Close() error
@@ -83,9 +84,18 @@ func As[T Artifact](as []Artifact) ([]T, error) {
 }
 
 func MustAs[T Artifact](as []Artifact) []T {
-	packages, err := As[T](as)
+	return must(As[T](as))
+}
+
+func AsArtifact[T Artifact](as []T) []Artifact {
+	return slices.Map(as, func(v T) Artifact {
+		return v
+	})
+}
+
+func must[T any](v T, err error) T {
 	if err != nil {
 		panic(err)
 	}
-	return packages
+	return v
 }

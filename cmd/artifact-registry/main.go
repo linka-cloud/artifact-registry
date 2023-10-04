@@ -101,46 +101,43 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("environment variable $%s must be set", EnvKey)
 	}
 	logrus.Infof("intializing artifact registry using backend %s", backend)
-	r := mux.NewRouter()
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			wrap := wrap(w)
-			start := time.Now()
-			next.ServeHTTP(wrap, r)
-			time.Since(start)
-			status := wrap.status
-			if status == 0 {
-				status = 200
-			}
-			log := logrus.WithFields(logrus.Fields{
-				"method":     r.Method,
-				"path":       r.URL.Path,
-				"remote":     r.RemoteAddr,
-				"duration":   time.Since(start),
-				"status":     http.StatusText(status),
-				"statusCode": status,
-				"size":       wrap.size,
-				"userAgent":  r.UserAgent(),
-			})
-			if domain != "" {
-				log = log.WithField("repo", strings.Split(r.Host, ".")[0])
-			} else {
-				log = log.WithField("repo", strings.Split(r.URL.Path, "/")[0])
-			}
-			if status < 400 {
-				log.Info("")
-			} else {
-				log.Error(wrap.body.String())
-			}
-		})
-	})
-	h := sha256.New()
-	h.Write([]byte(key))
-	if err := packages.Init(ctx, r, backend, h.Sum(nil), domain); err != nil {
+	mux := mux.NewRouter()
+	k := sha256.Sum256([]byte(key))
+	if err := packages.Init(ctx, mux, backend, k[:], domain); err != nil {
 		return err
 	}
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		wrap := wrap(w)
+		start := time.Now()
+		mux.ServeHTTP(wrap, r)
+		time.Since(start)
+		status := wrap.status
+		if status == 0 {
+			status = 200
+		}
+		log := logrus.WithFields(logrus.Fields{
+			"method":     r.Method,
+			"path":       r.URL.Path,
+			"remote":     r.RemoteAddr,
+			"duration":   time.Since(start),
+			"status":     http.StatusText(status),
+			"statusCode": status,
+			"size":       wrap.size,
+			"userAgent":  r.UserAgent(),
+		})
+		if domain != "" {
+			log = log.WithField("repo", strings.Split(r.Host, ".")[0])
+		} else {
+			log = log.WithField("repo", strings.Split(r.URL.Path, "/")[0])
+		}
+		if status < 400 {
+			log.Info("")
+		} else {
+			log.Error(wrap.body.String())
+		}
+	})
 	logrus.Infof("starting server at %s", addr)
-	if err := http.ListenAndServe(addr, r); err != nil {
+	if err := http.ListenAndServe(addr, h); err != nil {
 		return err
 	}
 	return nil

@@ -25,6 +25,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"go.linka.cloud/artifact-registry/pkg/crypt/rsa"
 	"go.linka.cloud/artifact-registry/pkg/packages"
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
@@ -52,7 +53,7 @@ func (p *provider) DownloadKey(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing storage in context", http.StatusInternalServerError)
 		return
 	}
-	pub, f, err := PublicKeyAndFingerprintFromPrivateKey(s.Key())
+	pub, f, err := rsa.PublicKeyAndFingerprintFromPrivateKey(s.Key())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

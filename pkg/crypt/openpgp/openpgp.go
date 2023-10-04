@@ -12,22 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rpm
+package openpgp
 
 import (
+	"io"
 	"strings"
 
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/armor"
+	"golang.org/x/crypto/openpgp/packet"
 )
 
-const (
-	RepositoryPublicKey  = "repository.key"
-	RepositoryPrivateKey = "private.key"
-)
-
-func (r *repo) GenerateKeypair() (private string, public string, err error) {
-	e, err := openpgp.NewEntity("Artifact Registry", "RPM Registry", "", nil)
+func GenerateKeypair(name, comment, email string) (private string, public string, err error) {
+	e, err := openpgp.NewEntity(name, comment, email, nil)
 	if err != nil {
 		return "", "", err
 	}
@@ -56,6 +53,19 @@ func (r *repo) GenerateKeypair() (private string, public string, err error) {
 	return priv.String(), pub.String(), nil
 }
 
-func (r *repo) KeyNames() (string, string) {
-	return RepositoryPrivateKey, RepositoryPublicKey
+func ParseIdentity(priv string) (*openpgp.Entity, error) {
+	block, err := armor.Decode(strings.NewReader(priv))
+	if err != nil {
+		return nil, err
+	}
+
+	return openpgp.ReadEntity(packet.NewReader(block.Body))
+}
+
+func ArmoredDetachSign(w io.Writer, priv string, message io.Reader) (err error) {
+	e, err := ParseIdentity(priv)
+	if err != nil {
+		return err
+	}
+	return openpgp.ArmoredDetachSign(w, e, message, nil)
 }

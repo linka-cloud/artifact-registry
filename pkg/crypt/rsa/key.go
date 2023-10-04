@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package alpine
+package rsa
 
 import (
 	"crypto"
@@ -22,11 +22,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-)
-
-const (
-	RepositoryPublicKey  = "repository.key"
-	RepositoryPrivateKey = "private.key"
 )
 
 func PublicKeyAndFingerprintFromPrivateKey(priv string) (pub []byte, fp []byte, err error) {

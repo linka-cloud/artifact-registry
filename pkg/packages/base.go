@@ -23,8 +23,6 @@ import (
 
 type ArtifactFactory func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error)
 
-type Base struct{}
-
 func Upload(fn ArtifactFactory) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -84,4 +82,8 @@ func Delete(fn func(t *http.Request) string) http.HandlerFunc {
 			return
 		}
 	}
+}
+
+func NotFound(w http.ResponseWriter, _ *http.Request) {
+	http.Error(w, "not found", http.StatusNotFound)
 }

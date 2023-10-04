@@ -14,6 +14,7 @@ import (
 )
 
 func SignPackage(rpm *buffer.HashedBuffer, privateKey string) (reader io.Reader, signSize int64, original int64, err error) {
+	// TODO(adphi): check if we can use openpgp.ParseIdentity instead
 	keyring, err := openpgp.ReadArmoredKeyRing(bytes.NewReader([]byte(privateKey)))
 	if err != nil {
 		// failed to parse  key

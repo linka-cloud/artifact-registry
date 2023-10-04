@@ -1,16 +1,5 @@
-// Copyright 2023 Linka Cloud  All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2023 The Gitea Authors. All rights reserved.
+// SPDX-License-Identifier: MIT
 
 package alpine
 
@@ -34,11 +23,16 @@ import (
 
 	"go.linka.cloud/artifact-registry/pkg/buffer"
 	"go.linka.cloud/artifact-registry/pkg/codec"
+	rsa2 "go.linka.cloud/artifact-registry/pkg/crypt/rsa"
 	"go.linka.cloud/artifact-registry/pkg/slices"
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
 
-const IndexFilename = "APKINDEX.tar.gz"
+const (
+	RepositoryPublicKey  = "repository.key"
+	RepositoryPrivateKey = "private.key"
+	IndexFilename        = "APKINDEX.tar.gz"
+)
 
 var _ storage.Repository = (*repo)(nil)
 
@@ -49,7 +43,7 @@ func (r *repo) Name() string {
 }
 
 func (r *repo) GenerateKeypair() (string, string, error) {
-	return GenerateKeyPair()
+	return rsa2.GenerateKeyPair()
 }
 
 func (r *repo) KeyNames() (string, string) {
@@ -72,17 +66,23 @@ func (r *repo) Codec() storage.Codec {
 
 // Index (re)builds all repository files for every available distributions, components and architectures
 func (r *repo) Index(ctx context.Context, priv string, as ...storage.Artifact) (out []storage.Artifact, err error) {
-	pkgs, err := storage.As[*Package](as)
+	pkgs := storage.MustAs[*Package](as)
 	branches := slices.Distinct(slices.Map(pkgs, func(v *Package) string {
 		return v.Branch
 	}))
 	for _, branch := range branches {
-		repositories := slices.Distinct(slices.Map(pkgs, func(v *Package) string {
-			return v.Repo
+		pkgs := slices.Filter(pkgs, func(p *Package) bool {
+			return p.Branch == branch
+		})
+		repositories := slices.Distinct(slices.Map(pkgs, func(p *Package) string {
+			return p.Repo
 		}))
 		for _, repository := range repositories {
-			architectures := slices.Distinct(slices.Map(pkgs, func(v *Package) string {
-				return v.FileMetadata.Architecture
+			pkgs := slices.Filter(pkgs, func(p *Package) bool {
+				return p.Repo == repository
+			})
+			architectures := slices.Distinct(slices.Map(pkgs, func(p *Package) string {
+				return p.FileMetadata.Architecture
 			}))
 			for _, architecture := range architectures {
 				a, ok, err := buildPackagesIndex(ctx, branch, repository, architecture, priv, pkgs...)
@@ -158,7 +158,7 @@ func buildPackagesIndex(_ context.Context, branch, repository, architecture, pri
 		return nil, false, err
 	}
 
-	fingerprint, err := PublicKeyFingerprint(&privKey.PublicKey)
+	fingerprint, err := rsa2.PublicKeyFingerprint(&privKey.PublicKey)
 	if err != nil {
 		return nil, false, err
 	}

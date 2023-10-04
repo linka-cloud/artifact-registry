@@ -233,6 +233,25 @@ func (s *storage) Delete(ctx context.Context, name string) error {
 	return s.updateIndex(ctx, store, m, nil, nil)
 }
 
+func (s *storage) Artifacts(ctx context.Context) ([]Artifact, error) {
+	m, err := s.manifest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []Artifact
+	for _, v := range m.Layers {
+		if v.MediaType != s.MediaTypeArtifactLayer() {
+			continue
+		}
+		p, err := s.repo.Codec().Decode(v.Data)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
 func (s *storage) ServeFile(w http.ResponseWriter, r *http.Request, path string) error {
 	if k, _ := s.repo.KeyNames(); path == k || path == "" {
 		return fmt.Errorf("%s: %w", path, os.ErrNotExist)
