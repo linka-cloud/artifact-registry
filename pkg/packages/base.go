@@ -48,6 +48,7 @@ func Upload(fn ArtifactFactory) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		defer pkg.Close()
 		if err := s.Write(ctx, pkg); err != nil {
 			storage.Error(w, err)
 			return

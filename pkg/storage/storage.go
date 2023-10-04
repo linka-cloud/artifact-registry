@@ -29,7 +29,7 @@ import (
 type Codec = codec.Codec[Artifact]
 
 type Artifact interface {
-	io.Reader
+	io.ReadCloser
 	// Name is the name of the artifact, e.g. "jq".
 	Name() string
 	// Path is the path of the artifact in the repository.

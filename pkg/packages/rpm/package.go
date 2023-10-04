@@ -40,7 +40,7 @@ type Package struct {
 	HashSHA256      string           `json:"hashSha256"`
 	FileSize        int64            `json:"size"`
 
-	reader io.Reader
+	reader io.ReadCloser
 	digest digest.Digest
 }
 
@@ -73,6 +73,13 @@ func (p *Package) Path() string {
 
 func (p *Package) Size() int64 {
 	return p.FileSize
+}
+
+func (p *Package) Close() error {
+	if p.reader == nil {
+		return nil
+	}
+	return p.reader.Close()
 }
 
 type VersionMetadata struct {
@@ -172,7 +179,7 @@ func NewPackage(r io.Reader, size int64, key string) (*Package, error) {
 }
 
 // parsePackage parses the RPM package file
-func parsePackage(r io.Reader) (*Package, error) {
+func parsePackage(r io.ReadCloser) (*Package, error) {
 	rpm, err := rpmutils.ReadRpm(r)
 	if err != nil {
 		return nil, err

@@ -65,3 +65,7 @@ func (f *File) Size() int64 {
 func (f *File) Digest() digest.Digest {
 	return digest.FromBytes(f.data)
 }
+
+func (f *File) Close() error {
+	return nil
+}
