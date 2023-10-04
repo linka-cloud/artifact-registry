@@ -479,7 +479,7 @@ func (s *storage) MediaTypeArtifactConfig() string {
 	return "application/vnd.lk.registry.config.v1." + s.repo.Name() + "+" + s.repo.Codec().Name()
 }
 func (s *storage) MediaTypeRegistryLayerMetadata(name string) string {
-	if ext := filepath.Ext(name); ext != "" {
+	if ext := strings.TrimPrefix(filepath.Ext(name), "."); ext != "" {
 		return "application/vnd.lk.registry.metadata.layer.v1." + s.repo.Name() + "+" + ext
 	}
 	return "application/vnd.lk.registry.metadata.layer.v1." + s.repo.Name()

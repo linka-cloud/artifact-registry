@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -177,21 +176,20 @@ func buildReleaseFiles(_ context.Context, distribution string, components, archi
 		return nil, err
 	}
 
-	inReleaseContent, err := buffer.NewHashedBuffer()
+	inReleaseContent := &bytes.Buffer{}
 	if err != nil {
 		return nil, err
 	}
-	defer inReleaseContent.Close()
+
 	sw, err := clearsign.Encode(inReleaseContent, e.PrivateKey, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	releaseContent, err := buffer.NewHashedBuffer()
+	releaseContent := &bytes.Buffer{}
 	if err != nil {
 		return nil, err
 	}
-	defer releaseContent.Close()
 
 	w := io.MultiWriter(sw, releaseContent)
 
@@ -242,37 +240,25 @@ func buildReleaseFiles(_ context.Context, distribution string, components, archi
 
 	sw.Close()
 
-	var b bytes.Buffer
-	releaseGpgContent, err := buffer.CreateHashedBufferFromReader(&b)
+	releaseGpgContent := &bytes.Buffer{}
 	if err != nil {
 		return nil, err
 	}
-	defer releaseGpgContent.Close()
-	if err := openpgp.ArmoredDetachSign(releaseGpgContent, e, bytes.NewReader(b.Bytes()), nil); err != nil {
+
+	if err := openpgp.ArmoredDetachSign(releaseGpgContent, e, bytes.NewReader(releaseContent.Bytes()), nil); err != nil {
 		return nil, err
 	}
 
 	for _, file := range []struct {
 		name string
-		data *buffer.HashedBuffer
+		data *bytes.Buffer
 	}{
 		{"Release", releaseContent},
 		{"Release.gpg", releaseGpgContent},
 		{"InRelease", inReleaseContent},
 	} {
-		data, err := io.ReadAll(file.data)
-		if err != nil {
-			return nil, err
-		}
-		md5, sha1, sha256, sha512 := file.data.Sums()
-		out = append(
-			out,
-			storage.NewFile(filepath.Join("dists", distribution, file.name), data),
-			storage.NewFile(filepath.Join("dists", distribution, "by-hash", "md5sum", hex.EncodeToString(md5)), data),
-			storage.NewFile(filepath.Join("dists", distribution, "by-hash", "sha1", hex.EncodeToString(sha1)), data),
-			storage.NewFile(filepath.Join("dists", distribution, "by-hash", "sha256", hex.EncodeToString(sha256)), data),
-			storage.NewFile(filepath.Join("dists", distribution, "by-hash", "sha512", hex.EncodeToString(sha512)), data),
-		)
+
+		out = append(out, storage.NewFile(filepath.Join("dists", distribution, file.name), file.data.Bytes()))
 	}
 
 	return out, nil
