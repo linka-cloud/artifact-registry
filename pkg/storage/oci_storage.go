@@ -439,6 +439,9 @@ func (s *storage) manifest(ctx context.Context) (m ocispec.Manifest, err error) 
 	if err := json.NewDecoder(b).Decode(&m); err != nil {
 		return m, err
 	}
+	if m.ArtifactType != s.ArtefactTypeRegistry() {
+		return m, fmt.Errorf("%w: %s", ErrInvalidArtifactType, m.MediaType)
+	}
 	cache.Set(desc.Digest.String(), m, cache2.WithTTL(5*time.Minute))
 	return m, nil
 }
