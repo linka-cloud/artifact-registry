@@ -221,7 +221,7 @@ func buildPrimary(_ context.Context, packages ...*Package) (*RepoData, storage.A
 
 		pkgs = append(pkgs, &Package{
 			Type:         "rpm",
-			Name:         pd.FileName,
+			Name:         pd.PkgName,
 			Architecture: pd.FileMetadata.Architecture,
 			Version: Version{
 				Epoch:   pd.FileMetadata.Epoch,
@@ -307,7 +307,7 @@ func buildFilelists(_ context.Context, packages ...*Package) (*RepoData, storage
 	for _, pd := range packages {
 		pkgs = append(pkgs, &Package{
 			Pkgid:        pd.HashSHA256,
-			Name:         pd.FileName,
+			Name:         pd.PkgName,
 			Architecture: pd.FileMetadata.Architecture,
 			Version: Version{
 				Epoch:   pd.FileMetadata.Epoch,
@@ -397,7 +397,7 @@ func buildOther(ctx context.Context, packages ...*Package) (*RepoData, storage.A
 	for _, pd := range packages {
 		pkgs = append(pkgs, &Package{
 			Pkgid:        pd.HashSHA256,
-			Name:         pd.FileName,
+			Name:         pd.PkgName,
 			Architecture: pd.FileMetadata.Architecture,
 			Version: Version{
 				Epoch:   pd.FileMetadata.Epoch,

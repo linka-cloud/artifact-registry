@@ -32,6 +32,10 @@ func (i *info) Name() string {
 	return filepath.Base(i.path)
 }
 
+func (i *info) Arch() string {
+	return ""
+}
+
 func (i *info) Version() string {
 	return i.version
 }

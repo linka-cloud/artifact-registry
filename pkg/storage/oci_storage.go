@@ -94,7 +94,7 @@ func (s *storage) Stat(ctx context.Context, file string) (ArtifactInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO(adphi): retrieve version
+	// TODO(adphi): retrieve version and maybe arch from manifest
 	return &info{path: file, size: desc.Size, digest: desc.Digest, meta: desc.Data}, nil
 }
 
@@ -111,6 +111,9 @@ func (s *storage) Open(ctx context.Context, file string) (io.ReadCloser, error) 
 }
 
 func (s *storage) Write(ctx context.Context, pkg Artifact) error {
+	if prv, pb := s.repo.KeyNames(); pkg.Path() == prv || pkg.Path() == pb {
+		return fmt.Errorf("%s: %w", pkg.Path(), os.ErrExist)
+	}
 	store, err := file.New(s.tmp)
 	if err != nil {
 		return err
@@ -150,7 +153,7 @@ func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 	if err != nil {
 		return err
 	}
-	repo := s.name + "/" + pkg.Name()
+	repo := s.artifactName(pkg)
 	ref := strings.NewReplacer("~", "-", "+", "-").Replace(repo + ":" + pkg.Version())
 	if err := store.Tag(ctx, img, img.Digest.String()); err != nil {
 		return err
@@ -180,6 +183,9 @@ func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 }
 
 func (s *storage) Delete(ctx context.Context, name string) error {
+	if prv, pb := s.repo.KeyNames(); name == prv || name == pb {
+		return fmt.Errorf("%s: %w", name, os.ErrNotExist)
+	}
 	desc, err := s.find(ctx, name)
 	if err != nil {
 		return err
@@ -188,7 +194,7 @@ func (s *storage) Delete(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	repo := s.name + "/" + pkg.Name()
+	repo := s.artifactName(pkg)
 	ref := strings.NewReplacer("~", "-", "+", "-").Replace(repo + ":" + pkg.Version())
 	rrepo, err := s.newRepository(ctx, repo)
 	if err != nil {
@@ -230,7 +236,7 @@ func (s *storage) Delete(ctx context.Context, name string) error {
 func (s *storage) ServeFile(w http.ResponseWriter, r *http.Request, path string) error {
 	ctx := r.Context()
 	desc, err := s.find(ctx, path)
-	name := strings.Replace(path, "/", "-", -1)
+	name := filepath.Base(path)
 	rd, err := s.rrepo.Blobs().Fetch(ctx, desc)
 	if err != nil {
 		return err
@@ -292,11 +298,11 @@ func (s *storage) updateIndex(ctx context.Context, store *file.Store, m ocispec.
 	}
 	for _, v := range files {
 		l := ocispec.Descriptor{
-			MediaType: s.MediaTypeRegistryLayerMetadata(v.Name()),
+			MediaType: s.MediaTypeRegistryLayerMetadata(filepath.Base(v.Path())),
 			Digest:    v.Digest(),
 			Size:      v.Size(),
 			Annotations: map[string]string{
-				ocispec.AnnotationTitle: v.Name(),
+				ocispec.AnnotationTitle: v.Path(),
 			},
 		}
 		if err := store.Push(ctx, l, v); err != nil {
@@ -338,7 +344,7 @@ func (s *storage) init(ctx context.Context) error {
 	pvn, pbn := s.repo.KeyNames()
 	for _, v := range []Artifact{NewFile(pvn, enc), NewFile(pbn, []byte(pub))} {
 		l := ocispec.Descriptor{
-			MediaType: s.MediaTypeRegistryLayerMetadata(v.Name()),
+			MediaType: s.MediaTypeRegistryLayerMetadata(filepath.Base(v.Path())),
 			Digest:    v.Digest(),
 			Size:      v.Size(),
 			Annotations: map[string]string{
@@ -426,6 +432,10 @@ func (s *storage) find(ctx context.Context, file string) (ocispec.Descriptor, er
 		}
 	}
 	return ocispec.Descriptor{}, fmt.Errorf("%s: %w", file, os.ErrNotExist)
+}
+
+func (s *storage) artifactName(a Artifact) string {
+	return s.name + "/" + strings.Join([]string{a.Name(), a.Arch(), s.repo.Name()}, "-")
 }
 
 func (s *storage) ArtefactTypeRegistry() string {

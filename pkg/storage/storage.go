@@ -23,15 +23,22 @@ import (
 	"github.com/opencontainers/go-digest"
 
 	"go.linka.cloud/artifact-registry/pkg/codec"
+	"go.linka.cloud/artifact-registry/pkg/slices"
 )
 
 type Codec = codec.Codec[Artifact]
 
 type Artifact interface {
 	io.Reader
+	// Name is the name of the artifact, e.g. "jq".
 	Name() string
-	Version() string
+	// Path is the path of the artifact in the repository.
 	Path() string
+	// Arch is the architecture of the artifact.
+	Arch() string
+	// Version is the version of the artifact.
+	Version() string
+	// Size is the binary size of the artifact.
 	Size() int64
 	Digest() digest.Digest
 }
@@ -39,6 +46,7 @@ type Artifact interface {
 type ArtifactInfo interface {
 	Name() string
 	Version() string
+	Arch() string
 	Path() string
 	Size() int64
 	Digest() digest.Digest
@@ -64,15 +72,14 @@ type Storage interface {
 }
 
 func As[T Artifact](as []Artifact) ([]T, error) {
-	var packages []T
-	for _, v := range as {
+	return slices.MapErr(as, func(v Artifact) (T, error) {
+		var z T
 		pkg, ok := v.(T)
 		if !ok {
-			return nil, fmt.Errorf("invalid artifact type %T", v)
+			return z, fmt.Errorf("invalid artifact type %T", v)
 		}
-		packages = append(packages, pkg)
-	}
-	return packages, nil
+		return pkg, nil
+	})
 }
 
 func MustAs[T Artifact](as []Artifact) []T {

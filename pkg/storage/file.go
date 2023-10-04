@@ -17,6 +17,7 @@ package storage
 import (
 	"bytes"
 	"io"
+	"path/filepath"
 
 	"github.com/opencontainers/go-digest"
 )
@@ -42,7 +43,11 @@ func (f *File) Read(p []byte) (n int, err error) {
 }
 
 func (f *File) Name() string {
-	return f.name
+	return filepath.Base(f.name)
+}
+
+func (f *File) Arch() string {
+	return ""
 }
 
 func (f *File) Version() string {

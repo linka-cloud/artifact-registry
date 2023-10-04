@@ -49,10 +49,10 @@ type provider struct{}
 
 func (p *provider) Register(r *mux.Router) {
 	r.HandleFunc("/{repo:.+}.repo", p.config).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/upload", p.upload).Methods(http.MethodPut)
-	r.HandleFunc("/{repo:.+}/repodata/{filename}", p.repository).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/{filename}", p.download).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/{filename}", p.delete).Methods(http.MethodDelete)
+	r.HandleFunc("/{repo:.+}/upload", p.upload()).Methods(http.MethodPut)
+	r.HandleFunc("/{repo:.+}/repodata/{filename}", p.download()).Methods(http.MethodGet)
+	r.HandleFunc("/{repo:.+}/{filename}", p.download()).Methods(http.MethodGet)
+	r.HandleFunc("/{repo:.+}/{filename}", p.delete()).Methods(http.MethodDelete)
 }
 
 func (p *provider) Repository() storage.Repository {
@@ -80,74 +80,20 @@ func (p *provider) config(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(fmt.Sprintf(definition, strings.NewReplacer("/", "-").Replace(name), url, RepositoryPublicKey)))
 }
 
-func (p *provider) upload(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var (
-		reader io.ReadCloser
-		size   int64
-	)
-	if file, header, err := r.FormFile("file"); err == nil {
-		reader, size = file, header.Size
-	} else {
-		reader, size = r.Body, r.ContentLength
-	}
-	defer reader.Close()
-	s, ok := storage.FromContext(ctx)
-	if !ok {
-		http.Error(w, "missing storage in context", http.StatusInternalServerError)
-		return
-	}
-	pkg, err := NewPackage(reader, size, s.Key())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := s.Write(ctx, pkg); err != nil {
-		storage.Error(w, err)
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
+func (p *provider) upload() http.HandlerFunc {
+	return packages.Upload(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
+		return NewPackage(reader, size, key)
+	})
 }
 
-func (p *provider) download(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	file := mux.Vars(r)["filename"]
-	s, ok := storage.FromContext(ctx)
-	if !ok {
-		http.Error(w, "missing storage in context", http.StatusInternalServerError)
-		return
-	}
-	if err := s.ServeFile(w, r, file); err != nil {
-		storage.Error(w, err)
-		return
-	}
+func (p *provider) download() http.HandlerFunc {
+	return packages.Download(func(r *http.Request) string {
+		return mux.Vars(r)["filename"]
+	})
 }
 
-func (p *provider) delete(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	file := mux.Vars(r)["filename"]
-	s, ok := storage.FromContext(ctx)
-	if !ok {
-		http.Error(w, "missing storage in context", http.StatusInternalServerError)
-		return
-	}
-	if err := s.Delete(ctx, file); err != nil {
-		storage.Error(w, err)
-		return
-	}
-}
-
-func (p *provider) repository(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	file := mux.Vars(r)["filename"]
-	s, ok := storage.FromContext(ctx)
-	if !ok {
-		http.Error(w, "missing storage in context", http.StatusInternalServerError)
-		return
-	}
-	if err := s.ServeFile(w, r, file); err != nil {
-		storage.Error(w, err)
-		return
-	}
+func (p *provider) delete() http.HandlerFunc {
+	return packages.Delete(func(r *http.Request) string {
+		return mux.Vars(r)["filename"]
+	})
 }

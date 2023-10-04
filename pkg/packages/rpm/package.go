@@ -33,7 +33,7 @@ var _ storage.Artifact = (*Package)(nil)
 // https://refspecs.linuxbase.org/LSB_3.1.0/LSB-Core-generic/LSB-Core-generic/pkgformat.html
 
 type Package struct {
-	FileName        string           `json:"name"`
+	PkgName         string           `json:"name"`
 	PkgVersion      string           `json:"version"`
 	VersionMetadata *VersionMetadata `json:"versionMetadata"`
 	FileMetadata    *FileMetadata    `json:"fileMetadata"`
@@ -42,6 +42,14 @@ type Package struct {
 
 	reader io.Reader
 	digest digest.Digest
+}
+
+func (p *Package) Name() string {
+	return p.PkgName
+}
+
+func (p *Package) Arch() string {
+	return p.FileMetadata.Architecture
 }
 
 func (p *Package) Version() string {
@@ -59,12 +67,8 @@ func (p *Package) Digest() digest.Digest {
 	return p.digest
 }
 
-func (p *Package) Name() string {
-	return p.FileName
-}
-
 func (p *Package) Path() string {
-	return fmt.Sprintf("%s-%s.%s.rpm", p.FileName, p.PkgVersion, p.FileMetadata.Architecture)
+	return fmt.Sprintf("%s-%s.%s.rpm", p.PkgName, p.PkgVersion, p.FileMetadata.Architecture)
 }
 
 func (p *Package) Size() int64 {
@@ -185,7 +189,7 @@ func parsePackage(r io.Reader) (*Package, error) {
 	}
 
 	p := &Package{
-		FileName:   nevra.Name,
+		PkgName:    nevra.Name,
 		PkgVersion: version,
 		VersionMetadata: &VersionMetadata{
 			Summary:     getString(rpm.Header, rpmutils.SUMMARY),
