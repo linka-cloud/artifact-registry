@@ -275,6 +275,18 @@ func (s *storage) ServeFile(w http.ResponseWriter, r *http.Request, path string)
 	return err
 }
 
+func (s *storage) Size(ctx context.Context) (int64, error) {
+	m, err := s.manifest(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var size int64
+	for _, v := range m.Layers {
+		size += v.Size
+	}
+	return size, nil
+}
+
 func (s *storage) Key() string {
 	return s.key
 }

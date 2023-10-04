@@ -68,6 +68,7 @@ type Storage interface {
 	Delete(ctx context.Context, name string) error
 	Artifacts(ctx context.Context) ([]Artifact, error)
 	ServeFile(w http.ResponseWriter, r *http.Request, name string) error
+	Size(ctx context.Context) (int64, error)
 	Key() string
 	Close() error
 }
