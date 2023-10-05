@@ -16,12 +16,15 @@ package deb
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/mux"
 
+	"go.linka.cloud/artifact-registry/pkg/logger"
 	"go.linka.cloud/artifact-registry/pkg/packages"
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
@@ -42,7 +45,30 @@ func (p *provider) Repository() storage.Repository {
 	return &repo{}
 }
 
+func (p *provider) setup(w http.ResponseWriter, r *http.Request) {
+	repo, dist, component := mux.Vars(r)["repo"], mux.Vars(r)["distribution"], mux.Vars(r)["component"]
+	user, pass, _ := r.BasicAuth()
+	scheme := "https"
+	if r.TLS == nil {
+		scheme = "http"
+	}
+	args := setupArgs{
+		Name:      strings.Replace(repo, "/", "-", -1),
+		User:      user,
+		Password:  pass,
+		Scheme:    scheme,
+		Host:      r.Host,
+		Path:      strings.TrimSuffix(r.URL.Path, fmt.Sprintf("/%s/%s/setup", dist, component)),
+		Dist:      dist,
+		Component: component,
+	}
+	if err := scriptTemplate.Execute(w, args); err != nil {
+		logger.C(r.Context()).WithError(err).Error("failed to execute template")
+	}
+}
+
 func (p *provider) Register(m *mux.Router) {
+	m.HandleFunc("/{repo:.+}/{distribution}/{component}/setup", p.setup).Methods(http.MethodGet)
 	m.HandleFunc("/{repo:.+}/"+RepositoryPublicKey, packages.Download(func(r *http.Request) string {
 		return RepositoryPublicKey
 	})).Methods(http.MethodGet)

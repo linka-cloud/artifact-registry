@@ -23,6 +23,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"go.linka.cloud/artifact-registry/pkg/logger"
 	"go.linka.cloud/artifact-registry/pkg/packages"
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
@@ -49,6 +50,7 @@ type provider struct{}
 
 func (p *provider) Register(r *mux.Router) {
 	r.HandleFunc("/{repo:.+}.repo", p.config).Methods(http.MethodGet)
+	r.HandleFunc("/{repo:.+}/setup", p.setup).Methods(http.MethodGet)
 	r.HandleFunc("/{repo:.+}/upload", p.upload()).Methods(http.MethodPut)
 	r.HandleFunc("/{repo:.+}/repodata/{filename}", p.download()).Methods(http.MethodGet)
 	r.HandleFunc("/{repo:.+}/{filename}", p.download()).Methods(http.MethodGet)
@@ -78,6 +80,26 @@ func (p *provider) config(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write([]byte(fmt.Sprintf(definition, strings.NewReplacer("/", "-").Replace(name), url, RepositoryPublicKey)))
+}
+
+func (p *provider) setup(w http.ResponseWriter, r *http.Request) {
+	repo := mux.Vars(r)["repo"]
+	user, pass, _ := r.BasicAuth()
+	scheme := "https"
+	if r.TLS == nil {
+		scheme = "http"
+	}
+	args := setupArgs{
+		Name:     strings.Replace(repo, "/", "-", -1),
+		User:     user,
+		Password: pass,
+		Scheme:   scheme,
+		Host:     r.Host,
+		Path:     strings.TrimSuffix(r.URL.Path, "/setup"),
+	}
+	if err := scriptTemplate.Execute(w, args); err != nil {
+		logger.C(r.Context()).WithError(err).Error("failed to execute template")
+	}
 }
 
 func (p *provider) upload() http.HandlerFunc {

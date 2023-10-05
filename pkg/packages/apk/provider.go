@@ -22,10 +22,12 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/mux"
 
 	"go.linka.cloud/artifact-registry/pkg/crypt/rsa"
+	"go.linka.cloud/artifact-registry/pkg/logger"
 	"go.linka.cloud/artifact-registry/pkg/packages"
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
@@ -46,7 +48,7 @@ func (p *provider) Repository() storage.Repository {
 	return &repo{}
 }
 
-func (p *provider) DownloadKey(w http.ResponseWriter, r *http.Request) {
+func (p *provider) downloadKey(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	s, ok := storage.FromContext(ctx)
 	if !ok {
@@ -65,8 +67,30 @@ func (p *provider) DownloadKey(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, bytes.NewReader(pub))
 }
 
+func (p *provider) setup(w http.ResponseWriter, r *http.Request) {
+	branch, repository := mux.Vars(r)["branch"], mux.Vars(r)["repository"]
+	user, pass, _ := r.BasicAuth()
+	scheme := "https"
+	if r.TLS == nil {
+		scheme = "http"
+	}
+	args := setupArgs{
+		User:       user,
+		Password:   pass,
+		Scheme:     scheme,
+		Host:       r.Host,
+		Path:       strings.TrimSuffix(r.URL.Path, fmt.Sprintf("/%s/%s/setup", branch, repository)),
+		Branch:     branch,
+		Repository: repository,
+	}
+	if err := scriptTemplate.Execute(w, args); err != nil {
+		logger.C(r.Context()).WithError(err).Error("failed to execute template")
+	}
+}
+
 func (p *provider) Register(m *mux.Router) {
-	m.HandleFunc("/{repo:.+}/{branch}/{repository}/key", p.DownloadKey).Methods(http.MethodGet)
+	m.HandleFunc("/{repo:.+}/{branch}/{repository}/key", p.downloadKey).Methods(http.MethodGet)
+	m.HandleFunc("/{repo:.+}/{branch}/{repository}/setup", p.setup).Methods(http.MethodGet)
 	m.HandleFunc("/{repo:.+}/{branch}/{repository}/upload", packages.Upload(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
 		branch, repo := mux.Vars(r)["branch"], mux.Vars(r)["repository"]
 		return NewPackage(reader, branch, repo, size)
