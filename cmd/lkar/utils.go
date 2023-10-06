@@ -45,6 +45,9 @@ func url(typ ...string) string {
 }
 
 func repoURL() string {
+	if repository == "" {
+		return registry
+	}
 	return registry + "/" + repository
 }
 

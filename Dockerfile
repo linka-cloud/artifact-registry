@@ -24,11 +24,13 @@ COPY cmd ./cmd
 COPY pkg ./pkg
 
 RUN go build -trimpath -ldflags="-s -w" -o artifact-registry ./cmd/artifact-registry
+RUN go build -trimpath -ldflags="-s -w" -o lkar ./cmd/lkar
 
 FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates
 
 COPY --from=0 /app/artifact-registry /usr/local/bin/artifact-registry
+COPY --from=0 /app/lkar /usr/local/bin/lkar
 
 ENTRYPOINT ["/usr/local/bin/artifact-registry"]

@@ -30,6 +30,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	artifact_registry "go.linka.cloud/artifact-registry"
 	"go.linka.cloud/artifact-registry/pkg/logger"
 	"go.linka.cloud/artifact-registry/pkg/packages"
 	"go.linka.cloud/artifact-registry/pkg/repository"
@@ -93,9 +94,17 @@ var (
 			}
 		},
 	}
+	cmdVersion = &cobra.Command{
+		Use: "version",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(artifact_registry.Version)
+			fmt.Println(artifact_registry.BuildDate)
+		},
+	}
 )
 
 func main() {
+	cmd.AddCommand(cmdVersion)
 	cmd.Flags().StringVar(&addr, "addr", envDefault(EnvAddr, addr), "address to listen on [$"+EnvAddr+"]")
 	cmd.Flags().StringVar(&backend, "backend", envDefault(EnvBackend, backend), "registry backend [$"+EnvBackend+"]")
 	cmd.Flags().StringVar(&aesKey, "aes-key", envDefault(EnvKey, aesKey), "AES key to encrypt the repositories keys [$"+EnvKey+"]")

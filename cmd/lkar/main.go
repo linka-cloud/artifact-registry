@@ -15,7 +15,6 @@
 package main
 
 import (
-	"errors"
 	"os"
 	"strings"
 
@@ -54,10 +53,9 @@ func setup(cmd *cobra.Command, args []string) error {
 	arg := args[0]
 	parts := strings.Split(arg, "/")
 	registry = parts[0]
-	if len(parts) == 1 {
-		return errors.New("missing repository")
+	if len(parts) > 1 {
+		repository = strings.Join(parts[1:], "/")
 	}
-	repository = strings.Join(parts[1:], "/")
 	var err error
 	if format, err = printer.ParseFormat(output); err != nil {
 		return err
@@ -75,6 +73,9 @@ func setup(cmd *cobra.Command, args []string) error {
 	creds, err := credsStore.Get(cmd.Context(), repoURL())
 	if err != nil {
 		return err
+	}
+	if repository == "" {
+		return nil
 	}
 	if creds.Username == "" && creds.Password == "" {
 		creds, err = credsStore.Get(cmd.Context(), registry)

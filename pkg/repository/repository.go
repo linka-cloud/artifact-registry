@@ -17,15 +17,14 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
-	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/registry/remote"
 
 	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
@@ -74,7 +73,7 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, v := range ts {
 		if _, err := repo.Manifests().Resolve(ctx, v); err != nil {
-			if errors.Is(err, errdef.ErrNotFound) {
+			if storage.IsNotFound(err) {
 				continue
 			}
 			if err != nil {
@@ -87,41 +86,34 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "No repository found", http.StatusNotFound)
 }
 
-func ListRepositories(w http.ResponseWriter, r *http.Request) {
-	ctx := auth.Context(r.Context(), r)
-	o := storage.Options(ctx)
-	name, typ := mux.Vars(r)["repo"], mux.Vars(r)["type"]
-	reg, err := remote.NewRegistry(o.Host())
-	if err != nil {
-		storage.Error(w, err)
-		return
-	}
-	reg.Client = o.Client(ctx, o.Host())
+func listImageRepositories(ctx context.Context, reg *remote.Registry, name string, typ ...string) ([]*Repository, error) {
 	repo, err := reg.Repository(ctx, name)
 	if err != nil {
-		storage.Error(w, err)
-		return
-	}
-	var tags []string
-	if typ == "" {
-		if err := repo.Tags(ctx, "", func(s []string) error {
-			tags = append(tags, s...)
-			return nil
-		}); err != nil {
-			storage.Error(w, err)
-			return
+		if storage.IsNotFound(err) {
+			return nil, nil
 		}
-		tags = slices.Filter(tags, func(s string) bool {
-			return s == "apk" || s == "deb" || s == "rpm"
-		})
-	} else {
-		tags = []string{typ}
+		return nil, err
 	}
-	out := make([]*Repository, len(tags))
+	typ = slices.Filter(typ, func(s string) bool {
+		return s != ""
+	})
+	var tags []string
+	if len(typ) == 0 {
+		tags = packages.Providers()
+	} else {
+		tags = typ
+	}
+	var (
+		out []*Repository
+		mu  sync.Mutex
+	)
 	g, ctx := errgroup.WithContext(ctx)
 	fn := func(i int, typ string) error {
 		desc, err := repo.Manifests().Resolve(ctx, typ)
 		if err != nil {
+			if storage.IsNotFound(err) {
+				return nil
+			}
 			return err
 		}
 		var m ocispec.Manifest
@@ -144,7 +136,7 @@ func ListRepositories(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		r := &Repository{
-			Name:        o.Host() + "/" + name,
+			Name:        storage.Options(ctx).Host() + "/" + name,
 			Type:        typ,
 			LastUpdated: &t,
 		}
@@ -158,7 +150,9 @@ func ListRepositories(w http.ResponseWriter, r *http.Request) {
 				r.Metadata.Count++
 			}
 		}
-		out[i] = r
+		mu.Lock()
+		out = append(out, r)
+		mu.Unlock()
 		return nil
 	}
 	for i, v := range tags {
@@ -171,9 +165,66 @@ func ListRepositories(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func ListRepositories(w http.ResponseWriter, r *http.Request) {
+	ctx := auth.Context(r.Context(), r)
+	o := storage.Options(ctx)
+	typ := mux.Vars(r)["type"]
+	reg, err := remote.NewRegistry(o.Host())
+	if err != nil {
 		storage.Error(w, err)
 		return
 	}
+	reg.Client = o.Client(ctx, o.Host())
+	var repos []string
+	if err := reg.Repositories(ctx, "", func(r []string) error {
+		repos = append(repos, r...)
+		return nil
+	}); err != nil {
+		storage.Error(w, err)
+		return
+	}
+	var out []*Repository
+	var mu sync.Mutex
+	g, ctx := errgroup.WithContext(ctx)
+	for _, v := range repos {
+		v := v
+		g.Go(func() error {
+			rs, err := listImageRepositories(ctx, reg, v, typ)
+			if err != nil {
+				return fmt.Errorf("%s: %w", v, err)
+			}
+			mu.Lock()
+			out = append(out, rs...)
+			mu.Unlock()
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		storage.Error(w, err)
+		return
+	}
+	if err := json.NewEncoder(w).Encode(out); err != nil {
+		storage.Error(w, err)
+		return
+	}
+}
+
+func ListImageRepositories(w http.ResponseWriter, r *http.Request) {
+	ctx := auth.Context(r.Context(), r)
+	o := storage.Options(ctx)
+	name, typ := mux.Vars(r)["repo"], mux.Vars(r)["type"]
+	reg, err := remote.NewRegistry(o.Host())
+	if err != nil {
+		storage.Error(w, err)
+		return
+	}
+	reg.Client = o.Client(ctx, o.Host())
+	out, err := listImageRepositories(ctx, reg, name, typ)
 	if err := json.NewEncoder(w).Encode(out); err != nil {
 		storage.Error(w, err)
 		return
@@ -206,7 +257,8 @@ func Packages(w http.ResponseWriter, r *http.Request) {
 
 func Init(_ context.Context, r *mux.Router, domain string) error {
 	r.Path("/_auth/{repo:.+}").Methods(http.MethodGet, http.MethodPost).HandlerFunc(Auth)
-	r.Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(ListRepositories)
+	r.Path("/_repositories").Methods(http.MethodGet).HandlerFunc(ListRepositories)
+	r.Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(ListImageRepositories)
 	subs := []*mux.Router{r.PathPrefix("/{type}/_packages/").Subrouter()}
 	if domain != "" {
 		subs = append(subs, r.Host("{type}."+domain+"/_packages").Subrouter())

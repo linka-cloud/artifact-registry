@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 
+	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/registry/remote/errcode"
 )
 
@@ -35,6 +36,13 @@ func ErrCode(err error) int {
 		return ec.StatusCode
 	}
 	return http.StatusInternalServerError
+}
+
+func IsNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	return errors.Is(err, os.ErrNotExist) || ErrCode(err) == http.StatusNotFound || errors.Is(err, errdef.ErrNotFound)
 }
 
 func Error(w http.ResponseWriter, err error) {

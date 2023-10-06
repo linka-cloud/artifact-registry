@@ -18,33 +18,20 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	artifact_registry "go.linka.cloud/artifact-registry"
 )
 
-func newPkgCmd(typ string) *cobra.Command {
-	pkgCmd := &cobra.Command{
-		Use:   typ,
-		Short: fmt.Sprintf("Root command for %s management", typ),
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := setup(cmd, args); err != nil {
-				return err
-			}
-			if repository == "" {
-				return fmt.Errorf("repository part is required")
-			}
-			return nil
+var (
+	cmdVersion = &cobra.Command{
+		Use: "version",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(artifact_registry.Version)
+			fmt.Println(artifact_registry.BuildDate)
 		},
 	}
-	pkgCmd.AddCommand(
-		newPkgListCmd(typ),
-		newPkgUploadCmd(typ),
-		newPkgDownloadCmd(typ),
-		newPkgDeleteCmd(typ),
-	)
-	return pkgCmd
-}
+)
 
 func init() {
-	for _, v := range []string{"apk", "deb", "rpm"} {
-		rootCmd.AddCommand(newPkgCmd(v))
-	}
+	rootCmd.AddCommand(cmdVersion)
 }
