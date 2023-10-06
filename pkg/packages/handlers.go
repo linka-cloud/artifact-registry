@@ -36,11 +36,7 @@ func Upload(fn ArtifactFactory) http.HandlerFunc {
 			reader, size = r.Body, r.ContentLength
 		}
 		defer reader.Close()
-		s, ok := storage.FromContext(ctx)
-		if !ok {
-			http.Error(w, "missing storage in context", http.StatusInternalServerError)
-			return
-		}
+		s := storage.FromContext(ctx)
 		pkg, err := fn(r, reader, size, s.Key())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -57,12 +53,7 @@ func Upload(fn ArtifactFactory) http.HandlerFunc {
 
 func Download(fn func(r *http.Request) string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		s, ok := storage.FromContext(r.Context())
-		if !ok {
-			http.Error(w, "missing storage in context", http.StatusInternalServerError)
-			return
-		}
-		if err := s.ServeFile(w, r, fn(r)); err != nil {
+		if err := storage.FromContext(r.Context()).ServeFile(w, r, fn(r)); err != nil {
 			storage.Error(w, err)
 			return
 		}
@@ -72,12 +63,7 @@ func Download(fn func(r *http.Request) string) http.HandlerFunc {
 func Delete(fn func(t *http.Request) string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		s, ok := storage.FromContext(ctx)
-		if !ok {
-			http.Error(w, "missing storage in context", http.StatusInternalServerError)
-			return
-		}
-		if err := s.Delete(ctx, fn(r)); err != nil {
+		if err := storage.FromContext(ctx).Delete(ctx, fn(r)); err != nil {
 			storage.Error(w, err)
 			return
 		}
@@ -85,5 +71,5 @@ func Delete(fn func(t *http.Request) string) http.HandlerFunc {
 }
 
 func NotFound(w http.ResponseWriter, _ *http.Request) {
-	http.Error(w, "not found", http.StatusNotFound)
+	http.Error(w, "404 not found", http.StatusNotFound)
 }

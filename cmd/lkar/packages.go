@@ -12,22 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package main
 
 import (
-	"context"
+	"fmt"
+
+	"github.com/spf13/cobra"
 )
 
-type storageKey struct{}
-
-func Context(ctx context.Context, r Storage) context.Context {
-	return context.WithValue(ctx, storageKey{}, r)
+func newPkgCmd(typ string) *cobra.Command {
+	pkgCmd := &cobra.Command{
+		Use:   typ,
+		Short: fmt.Sprintf("Root command for %s management", typ),
+	}
+	pkgCmd.AddCommand(
+		newPkgListCmd(typ),
+		newPkgUploadCmd(typ),
+		newPkgDownloadCmd(typ),
+		newPkgDeleteCmd(typ),
+	)
+	return pkgCmd
 }
 
-func FromContext(ctx context.Context) Storage {
-	s, ok := ctx.Value(storageKey{}).(Storage)
-	if !ok {
-		panic("missing storage in context")
+func init() {
+	for _, v := range []string{"apk", "deb", "rpm"} {
+		rootCmd.AddCommand(newPkgCmd(v))
 	}
-	return s
 }

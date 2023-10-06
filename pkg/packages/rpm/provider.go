@@ -48,15 +48,6 @@ func newProvider(_ context.Context) (packages.Provider, error) {
 
 type provider struct{}
 
-func (p *provider) Register(r *mux.Router) {
-	r.HandleFunc("/{repo:.+}.repo", p.config).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/setup", p.setup).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/upload", p.upload()).Methods(http.MethodPut)
-	r.HandleFunc("/{repo:.+}/repodata/{filename}", p.download()).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/{filename}", p.download()).Methods(http.MethodGet)
-	r.HandleFunc("/{repo:.+}/{filename}", p.delete()).Methods(http.MethodDelete)
-}
-
 func (p *provider) Repository() storage.Repository {
 	return &repo{}
 }
@@ -64,8 +55,8 @@ func (p *provider) Repository() storage.Repository {
 func (p *provider) config(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	name := mux.Vars(r)["repo"]
-	if _, ok := storage.FromContext(ctx); !ok {
-		http.Error(w, "missing storage in context", http.StatusInternalServerError)
+	if _, err := storage.FromContext(ctx).Stat(ctx, RepositoryPublicKey); err != nil {
+		storage.Error(w, err)
 		return
 	}
 	scheme := "http"
@@ -83,6 +74,11 @@ func (p *provider) config(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *provider) setup(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if _, err := storage.FromContext(ctx).Stat(ctx, RepositoryPublicKey); err != nil {
+		storage.Error(w, err)
+		return
+	}
 	repo := mux.Vars(r)["repo"]
 	user, pass, _ := r.BasicAuth()
 	scheme := "https"
@@ -102,20 +98,45 @@ func (p *provider) setup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *provider) upload() http.HandlerFunc {
-	return packages.Upload(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
-		return NewPackage(reader, size, key)
-	})
-}
-
-func (p *provider) download() http.HandlerFunc {
-	return packages.Download(func(r *http.Request) string {
-		return mux.Vars(r)["filename"]
-	})
-}
-
-func (p *provider) delete() http.HandlerFunc {
-	return packages.Delete(func(r *http.Request) string {
-		return mux.Vars(r)["filename"]
-	})
+func (p *provider) Routes() []*packages.Route {
+	return []*packages.Route{
+		{
+			Method:  http.MethodGet,
+			Path:    "/{repo:.+}.repo",
+			Handler: p.config,
+		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/{repo:.+}/setup",
+			Handler: p.setup,
+		},
+		{
+			Method: http.MethodPut,
+			Path:   "/{repo:.+}/upload",
+			Handler: packages.Upload(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
+				return NewPackage(reader, size, key)
+			}),
+		},
+		{
+			Method: http.MethodGet,
+			Path:   "/{repo:.+}/repodata/{filename}",
+			Handler: packages.Download(func(r *http.Request) string {
+				return mux.Vars(r)["filename"]
+			}),
+		},
+		{
+			Method: http.MethodGet,
+			Path:   "/{repo:.+}/{filename}",
+			Handler: packages.Download(func(r *http.Request) string {
+				return mux.Vars(r)["filename"]
+			}),
+		},
+		{
+			Method: http.MethodDelete,
+			Path:   "/{repo:.+}/{filename}",
+			Handler: packages.Delete(func(r *http.Request) string {
+				return mux.Vars(r)["filename"]
+			}),
+		},
+	}
 }

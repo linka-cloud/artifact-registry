@@ -50,11 +50,7 @@ func (p *provider) Repository() storage.Repository {
 
 func (p *provider) downloadKey(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	s, ok := storage.FromContext(ctx)
-	if !ok {
-		http.Error(w, "missing storage in context", http.StatusInternalServerError)
-		return
-	}
+	s := storage.FromContext(ctx)
 	pub, f, err := rsa.PublicKeyAndFingerprintFromPrivateKey(s.Key())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -68,6 +64,12 @@ func (p *provider) downloadKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *provider) setup(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	s := storage.FromContext(ctx)
+	if _, err := s.Stat(ctx, RepositoryPublicKey); err != nil {
+		storage.Error(w, err)
+		return
+	}
 	branch, repository := mux.Vars(r)["branch"], mux.Vars(r)["repository"]
 	user, pass, _ := r.BasicAuth()
 	scheme := "https"
@@ -88,19 +90,41 @@ func (p *provider) setup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *provider) Register(m *mux.Router) {
-	m.HandleFunc("/{repo:.+}/{branch}/{repository}/key", p.downloadKey).Methods(http.MethodGet)
-	m.HandleFunc("/{repo:.+}/{branch}/{repository}/setup", p.setup).Methods(http.MethodGet)
-	m.HandleFunc("/{repo:.+}/{branch}/{repository}/upload", packages.Upload(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
-		branch, repo := mux.Vars(r)["branch"], mux.Vars(r)["repository"]
-		return NewPackage(reader, branch, repo, size)
-	})).Methods(http.MethodPut)
-	m.HandleFunc("/{repo:.+}/{branch}/{repository}/{architecture}/{filename}", packages.Download(func(r *http.Request) string {
-		branch, repo, arch, filename := mux.Vars(r)["branch"], mux.Vars(r)["repository"], mux.Vars(r)["architecture"], mux.Vars(r)["filename"]
-		return filepath.Join(branch, repo, arch, filename)
-	})).Methods(http.MethodGet)
-	m.HandleFunc("/{repo:.+}/{branch}/{repository}/{architecture}/{filename}", packages.Delete(func(r *http.Request) string {
-		branch, repo, arch, filename := mux.Vars(r)["branch"], mux.Vars(r)["repository"], mux.Vars(r)["architecture"], mux.Vars(r)["filename"]
-		return filepath.Join(branch, repo, arch, filename)
-	})).Methods(http.MethodDelete)
+func (p *provider) Routes() []*packages.Route {
+	return []*packages.Route{
+		{
+			Method:  http.MethodGet,
+			Path:    "/{repo:.+}/{branch}/{repository}/key",
+			Handler: p.downloadKey,
+		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/{repo:.+}/{branch}/{repository}/setup",
+			Handler: p.setup,
+		},
+		{
+			Method: http.MethodPut,
+			Path:   "/{repo:.+}/{branch}/{repository}/upload",
+			Handler: packages.Upload(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
+				branch, repo := mux.Vars(r)["branch"], mux.Vars(r)["repository"]
+				return NewPackage(reader, branch, repo, size)
+			}),
+		},
+		{
+			Method: http.MethodGet,
+			Path:   "/{repo:.+}/{branch}/{repository}/{architecture}/{filename}",
+			Handler: packages.Download(func(r *http.Request) string {
+				branch, repo, arch, filename := mux.Vars(r)["branch"], mux.Vars(r)["repository"], mux.Vars(r)["architecture"], mux.Vars(r)["filename"]
+				return filepath.Join(branch, repo, arch, filename)
+			}),
+		},
+		{
+			Method: http.MethodDelete,
+			Path:   "/{repo:.+}/{branch}/{repository}/{architecture}/{filename}",
+			Handler: packages.Delete(func(r *http.Request) string {
+				branch, repo, arch, filename := mux.Vars(r)["branch"], mux.Vars(r)["repository"], mux.Vars(r)["architecture"], mux.Vars(r)["filename"]
+				return filepath.Join(branch, repo, arch, filename)
+			}),
+		},
+	}
 }

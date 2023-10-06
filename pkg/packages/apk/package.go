@@ -90,19 +90,19 @@ func (p *Package) Close() error {
 type VersionMetadata struct {
 	Description string `json:"description,omitempty"`
 	License     string `json:"license,omitempty"`
-	ProjectURL  string `json:"project_url,omitempty"`
+	ProjectURL  string `json:"projectURL,omitempty"`
 	Maintainer  string `json:"maintainer,omitempty"`
 }
 
 type FileMetadata struct {
 	Checksum     string   `json:"checksum"`
 	Packager     string   `json:"packager,omitempty"`
-	BuildDate    int64    `json:"build_date,omitempty"`
+	BuildDate    int64    `json:"buildDate,omitempty"`
 	Size         int64    `json:"size,omitempty"`
 	Architecture string   `json:"architecture,omitempty"`
 	Origin       string   `json:"origin,omitempty"`
-	CommitHash   string   `json:"commit_hash,omitempty"`
-	InstallIf    string   `json:"install_if,omitempty"`
+	CommitHash   string   `json:"commitHash,omitempty"`
+	InstallIf    string   `json:"installIf,omitempty"`
 	Provides     []string `json:"provides,omitempty"`
 	Dependencies []string `json:"dependencies,omitempty"`
 }

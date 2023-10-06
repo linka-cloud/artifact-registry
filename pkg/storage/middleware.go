@@ -25,7 +25,7 @@ import (
 
 type MiddlewareFunc = func(repoVar string) mux.MiddlewareFunc
 
-func Middleware(ar Repository, backend string, key []byte) MiddlewareFunc {
+func Middleware(ar Repository) MiddlewareFunc {
 	return func(repoVar string) mux.MiddlewareFunc {
 		return func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +36,7 @@ func Middleware(ar Repository, backend string, key []byte) MiddlewareFunc {
 					return
 				}
 				ctx = logger.Set(ctx, logger.C(ctx).WithField("repo", name).WithField("type", ar.Name()))
-				s, err := NewStorage(ctx, backend, name, ar, key)
+				s, err := NewStorage(ctx, name, ar)
 				if err != nil {
 					Error(w, err)
 					return

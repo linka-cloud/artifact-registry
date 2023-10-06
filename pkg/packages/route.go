@@ -12,22 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package packages
 
 import (
-	"context"
+	"net/http"
 )
 
-type storageKey struct{}
-
-func Context(ctx context.Context, r Storage) context.Context {
-	return context.WithValue(ctx, storageKey{}, r)
-}
-
-func FromContext(ctx context.Context) Storage {
-	s, ok := ctx.Value(storageKey{}).(Storage)
-	if !ok {
-		panic("missing storage in context")
-	}
-	return s
+type Route struct {
+	Method  string
+	Path    string
+	Handler http.HandlerFunc
 }

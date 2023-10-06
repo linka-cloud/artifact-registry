@@ -103,7 +103,7 @@ func (p *Package) Digest() digest.Digest {
 
 type Metadata struct {
 	Maintainer   string   `json:"maintainer,omitempty"`
-	ProjectURL   string   `json:"project_url,omitempty"`
+	ProjectURL   string   `json:"projectURL,omitempty"`
 	Description  string   `json:"description,omitempty"`
 	Dependencies []string `json:"dependencies,omitempty"`
 }

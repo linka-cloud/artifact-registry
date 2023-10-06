@@ -84,7 +84,7 @@ func (p *Package) Close() error {
 
 type VersionMetadata struct {
 	License     string `json:"license,omitempty"`
-	ProjectURL  string `json:"project_url,omitempty"`
+	ProjectURL  string `json:"projectURL,omitempty"`
 	Summary     string `json:"summary,omitempty"`
 	Description string `json:"description,omitempty"`
 }
@@ -97,12 +97,12 @@ type FileMetadata struct {
 	Vendor        string `json:"vendor,omitempty"`
 	Group         string `json:"group,omitempty"`
 	Packager      string `json:"packager,omitempty"`
-	SourceRpm     string `json:"source_rpm,omitempty"`
-	BuildHost     string `json:"build_host,omitempty"`
-	BuildTime     uint64 `json:"build_time,omitempty"`
-	FileTime      uint64 `json:"file_time,omitempty"`
-	InstalledSize uint64 `json:"installed_size,omitempty"`
-	ArchiveSize   uint64 `json:"archive_size,omitempty"`
+	SourceRpm     string `json:"sourceRPM,omitempty"`
+	BuildHost     string `json:"buildHost,omitempty"`
+	BuildTime     uint64 `json:"buildTime,omitempty"`
+	FileTime      uint64 `json:"fileTime,omitempty"`
+	InstalledSize uint64 `json:"installedSize,omitempty"`
+	ArchiveSize   uint64 `json:"archiveSize,omitempty"`
 
 	Provides  []*Entry `json:"provide,omitempty"`
 	Requires  []*Entry `json:"require,omitempty"`
@@ -125,7 +125,7 @@ type Entry struct {
 type File struct {
 	Path         string `json:"path" xml:",chardata"`
 	Type         string `json:"type,omitempty" xml:"type,attr,omitempty"`
-	IsExecutable bool   `json:"is_executable" xml:"-"`
+	IsExecutable bool   `json:"isExecutable" xml:"-"`
 }
 
 type Changelog struct {

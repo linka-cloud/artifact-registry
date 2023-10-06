@@ -43,32 +43,29 @@ import (
 var cache = cache2.New()
 
 type storage struct {
-	opts   options
-	host   string
-	name   string
-	rrepo  *remote.Repository
-	ref    string
-	repo   Repository
-	key    string
-	tmp    string
-	aesKey []byte
+	opts  options
+	name  string
+	rrepo *remote.Repository
+	ref   string
+	repo  Repository
+	key   string
+	tmp   string
 }
 
-func NewStorage(ctx context.Context, host, name string, repo Repository, aesKey []byte) (Storage, error) {
-	name = host + "/" + strings.TrimSuffix(name, "/")
+func NewStorage(ctx context.Context, name string, repo Repository) (Storage, error) {
+	opts := Options(ctx)
+	name = opts.host + "/" + strings.TrimSuffix(name, "/")
 	ref := name + ":" + repo.Name()
 	tmp, err := os.MkdirTemp(os.TempDir(), "lk-artifact-registry-"+repo.Name())
 	if err != nil {
 		return nil, err
 	}
 	r := &storage{
-		host:   host,
-		name:   name,
-		repo:   repo,
-		ref:    ref,
-		tmp:    tmp,
-		aesKey: aesKey,
-		opts:   opts(ctx),
+		name: name,
+		repo: repo,
+		ref:  ref,
+		tmp:  tmp,
+		opts: opts,
 	}
 	defer func() {
 		if err != nil {
@@ -79,14 +76,11 @@ func NewStorage(ctx context.Context, host, name string, repo Repository, aesKey 
 	if err != nil {
 		return nil, err
 	}
-	if err = r.fetchKey(ctx); err == nil {
-		return r, nil
-	}
-	if !errors.Is(err, errdef.ErrNotFound) {
-		return nil, err
-	}
-	if err = r.init(ctx); err != nil {
-		return nil, err
+	if err = r.fetchKey(ctx); err != nil {
+		if !errors.Is(err, errdef.ErrNotFound) {
+			return nil, err
+		}
+		err = nil
 	}
 	return r, nil
 }
@@ -117,6 +111,10 @@ func (s *storage) Open(ctx context.Context, file string) (io.ReadCloser, error) 
 func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 	log := logger.C(ctx).WithField("artifact", pkg.Name())
 	ctx = logger.Set(ctx, log)
+
+	if err := s.init(ctx); err != nil {
+		return err
+	}
 
 	log.Infof("uploading %s", pkg.Path())
 	if prv, pb := s.repo.KeyNames(); pkg.Path() == prv || pkg.Path() == pb {
@@ -314,7 +312,7 @@ func (s *storage) newRepository(ctx context.Context, name string) (*remote.Repos
 	if err != nil {
 		return nil, err
 	}
-	rrepo.Client = s.client(ctx, s.host)
+	rrepo.Client = s.opts.Client(ctx, s.opts.host)
 	rrepo.PlainHTTP = s.opts.plainHTTP
 	return rrepo, nil
 }
@@ -375,6 +373,10 @@ func (s *storage) updateIndex(ctx context.Context, store *file.Store, m ocispec.
 }
 
 func (s *storage) init(ctx context.Context) error {
+	// if we have a key, we are already initialized
+	if s.key != "" {
+		return nil
+	}
 	store, err := file.New(s.tmp)
 	if err != nil {
 		return err
@@ -384,7 +386,7 @@ func (s *storage) init(ctx context.Context) error {
 		return err
 	}
 	s.key = priv
-	enc, err := aes.Encrypt(s.aesKey, priv)
+	enc, err := aes.Encrypt(s.opts.key, priv)
 	if err != nil {
 		return err
 	}
@@ -464,7 +466,7 @@ func (s *storage) fetchKey(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	priv, err := aes.Decrypt(s.aesKey, b)
+	priv, err := aes.Decrypt(s.opts.key, b)
 	if err != nil {
 		return err
 	}

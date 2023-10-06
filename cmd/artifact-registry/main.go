@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net"
@@ -31,13 +32,14 @@ import (
 
 	"go.linka.cloud/artifact-registry/pkg/logger"
 	"go.linka.cloud/artifact-registry/pkg/packages"
+	"go.linka.cloud/artifact-registry/pkg/repository"
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
 
 const (
 	EnvAddr    = "ARTIFACT_REGISTRY_ADDRESS"
 	EnvBackend = "ARTIFACT_REGISTRY_BACKEND"
-	EnvKey     = "ARTIFACT_REGISTRY_KEY"
+	EnvKey     = "ARTIFACT_REGISTRY_AES_KEY"
 	EnvDomain  = "ARTIFACT_REGISTRY_DOMAIN"
 )
 
@@ -48,7 +50,7 @@ var (
 
 	domain = ""
 
-	key = ""
+	aesKey = ""
 
 	noHTTPS = false
 
@@ -56,11 +58,16 @@ var (
 
 	tagPerArtifact = false
 
+	key, cert string
+
+	clientCA string
+
 	cmd = &cobra.Command{
 		Use:          "artifact-registry",
 		SilenceUsage: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			var opts []storage.Option
+			// TODO(adphi): validate host
+			opts := []storage.Option{storage.WithHost(backend)}
 			if noHTTPS {
 				opts = append(opts, storage.WithPlainHTTP())
 			}
@@ -69,6 +76,17 @@ var (
 			}
 			if tagPerArtifact {
 				opts = append(opts, storage.WithArtifactTags())
+			}
+			if clientCA != "" {
+				p := x509.NewCertPool()
+				b, err := os.ReadFile(clientCA)
+				if err != nil {
+					logrus.Fatal(err)
+				}
+				if !p.AppendCertsFromPEM(b) {
+					logrus.Fatal(err)
+				}
+				opts = append(opts, storage.WithClientCA(p))
 			}
 			if err := run(cmd.Context(), opts...); err != nil {
 				logrus.Fatal(err)
@@ -80,11 +98,14 @@ var (
 func main() {
 	cmd.Flags().StringVar(&addr, "addr", envDefault(EnvAddr, addr), "address to listen on [$"+EnvAddr+"]")
 	cmd.Flags().StringVar(&backend, "backend", envDefault(EnvBackend, backend), "registry backend [$"+EnvBackend+"]")
-	cmd.Flags().StringVar(&key, "key", envDefault(EnvKey, key), "key to encrypt the repositories keys [$"+EnvKey+"]")
+	cmd.Flags().StringVar(&aesKey, "aes-key", envDefault(EnvKey, aesKey), "AES key to encrypt the repositories keys [$"+EnvKey+"]")
 	cmd.Flags().StringVar(&domain, "domain", envDefault(EnvDomain, domain), "domain to use to serve the repositories as subdomains [$"+EnvDomain+"]")
 	cmd.Flags().BoolVar(&noHTTPS, "no-https", noHTTPS, "disable backend registry client https")
 	cmd.Flags().BoolVar(&insecure, "insecure", insecure, "disable backend registry client tls verification")
 	cmd.Flags().BoolVar(&tagPerArtifact, "tag-artifacts", tagPerArtifact, "tag artifacts manifests")
+	cmd.Flags().StringVar(&clientCA, "client-ca", "", "tls client certificate authority")
+	cmd.Flags().StringVar(&cert, "cert", "", "tls certificate")
+	cmd.Flags().StringVar(&key, "key", "", "tls key")
 	if err := cmd.Execute(); err != nil {
 		logrus.Fatal(err)
 	}
@@ -118,16 +139,21 @@ func (w *wrapWriter) Write(b []byte) (int, error) {
 }
 
 func run(ctx context.Context, opts ...storage.Option) error {
-	ctx = storage.WithOptions(ctx, opts...)
-	if key == "" {
+	if aesKey == "" {
 		return fmt.Errorf("environment variable $%s must be set", EnvKey)
 	}
 	logrus.Infof("intializing artifact registry using backend %s", backend)
 	router := mux.NewRouter()
-	k := sha256.Sum256([]byte(key))
-	if err := packages.Init(ctx, router, backend, k[:], domain); err != nil {
+	k := sha256.Sum256([]byte(aesKey))
+	// TODO(adphi): client tls
+	ctx = storage.WithOptions(ctx, append(opts, storage.WithKey(k[:]))...)
+	if err := repository.Init(ctx, router, domain); err != nil {
 		return err
 	}
+	if err := packages.Init(ctx, router, domain); err != nil {
+		return err
+	}
+
 	s := http.Server{
 		BaseContext: func(lis net.Listener) context.Context {
 			return ctx
@@ -162,13 +188,12 @@ func run(ctx context.Context, opts ...storage.Option) error {
 				log.Error(wrap.body.String())
 			}
 		}),
-		// TODO(adphi): tls
 	}
 	logrus.Infof("starting server at %s", addr)
-	if err := s.ListenAndServe(); err != nil {
-		return err
+	if cert != "" && key != "" {
+		return s.ListenAndServeTLS(cert, key)
 	}
-	return nil
+	return s.ListenAndServe()
 }
 
 func envDefault(key string, def string) string {

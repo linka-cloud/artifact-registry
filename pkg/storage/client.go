@@ -82,7 +82,7 @@ func copts(name string) oras.CopyOptions {
 	}
 }
 
-func (s *storage) client(ctx context.Context, host string) remote.Client {
+func (o options) Client(ctx context.Context, host string) remote.Client {
 	a := auth2.FromContext(ctx)
 	if a == nil {
 		return http.DefaultClient
@@ -104,7 +104,8 @@ func (s *storage) client(ctx context.Context, host string) remote.Client {
 		Client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: s.opts.insecure,
+					InsecureSkipVerify: o.insecure,
+					ClientCAs:          o.clientCA,
 				},
 			},
 		},

@@ -16,14 +16,18 @@ package packages
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/gorilla/mux"
 
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
 
+var ErrUnknownProvider = errors.New("unknown provider")
+
 type Provider interface {
-	Register(m *mux.Router)
+	Routes() []*Route
 	Repository() storage.Repository
 }
 
@@ -35,19 +39,38 @@ func Register(name string, factory ProviderFactory) {
 	providers[name] = factory
 }
 
-func Init(ctx context.Context, r *mux.Router, backend string, key []byte, domain string) error {
+func Providers() []string {
+	var ret []string
+	for k := range providers {
+		ret = append(ret, k)
+	}
+	return ret
+}
+
+func New(ctx context.Context, name string) (Provider, error) {
+	f, ok := providers[name]
+	if !ok {
+		return nil, fmt.Errorf("%s: %w", name, ErrUnknownProvider)
+	}
+	return f(ctx)
+}
+
+func Init(ctx context.Context, r *mux.Router, domain string) error {
 	for k, v := range providers {
 		p, err := v(ctx)
 		if err != nil {
 			return err
 		}
+		mdlw := storage.Middleware(p.Repository())("repo")
 		subs := []*mux.Router{r.PathPrefix("/" + k).Subrouter()}
 		if domain != "" {
 			subs = append(subs, r.Host(k+"."+domain).Subrouter())
 		}
 		for _, v := range subs {
-			v.Use(storage.Middleware(p.Repository(), backend, key)("repo"))
-			p.Register(v)
+			v.Use(mdlw)
+			for _, vv := range p.Routes() {
+				v.Path(vv.Path).Methods(vv.Method).HandlerFunc(vv.Handler)
+			}
 		}
 	}
 	return nil

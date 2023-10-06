@@ -16,6 +16,7 @@ package storage
 
 import (
 	"context"
+	"crypto/x509"
 )
 
 type optionsKey struct{}
@@ -28,19 +29,37 @@ func WithOptions(ctx context.Context, opts ...Option) context.Context {
 	return context.WithValue(ctx, optionsKey{}, o)
 }
 
-func opts(ctx context.Context) options {
+func Options(ctx context.Context) options {
 	o, _ := ctx.Value(optionsKey{}).(options)
 	return o
 }
 
 type options struct {
+	host         string
+	key          []byte
 	plainHTTP    bool
 	insecure     bool
 	artifactTags bool
-	// TODO(adphi): client certificate authority
+	clientCA     *x509.CertPool
+}
+
+func (o options) Host() string {
+	return o.host
 }
 
 type Option func(o *options)
+
+func WithHost(host string) Option {
+	return func(o *options) {
+		o.host = host
+	}
+}
+
+func WithKey(key []byte) Option {
+	return func(o *options) {
+		o.key = key
+	}
+}
 
 func WithPlainHTTP() Option {
 	return func(o *options) {
@@ -57,5 +76,11 @@ func WithInsecure() Option {
 func WithArtifactTags() Option {
 	return func(o *options) {
 		o.artifactTags = true
+	}
+}
+
+func WithClientCA(clientCA *x509.CertPool) Option {
+	return func(o *options) {
+		o.clientCA = clientCA
 	}
 }
