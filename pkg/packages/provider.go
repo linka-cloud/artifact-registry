@@ -69,7 +69,9 @@ func Init(ctx context.Context, r *mux.Router, domain string) error {
 		for _, v := range subs {
 			v.Use(mdlw)
 			for _, vv := range p.Routes() {
-				v.Path(vv.Path).Methods(vv.Method).HandlerFunc(vv.Handler)
+				if err := v.Path(vv.Path).Methods(vv.Method).HandlerFunc(vv.Handler).GetError(); err != nil {
+					return fmt.Errorf("%s: %q: %w", k, vv.Path, err)
+				}
 			}
 		}
 	}

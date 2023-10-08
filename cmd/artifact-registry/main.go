@@ -113,8 +113,8 @@ func main() {
 	cmd.Flags().BoolVar(&insecure, "insecure", insecure, "disable backend registry client tls verification")
 	cmd.Flags().BoolVar(&tagPerArtifact, "tag-artifacts", tagPerArtifact, "tag artifacts manifests")
 	cmd.Flags().StringVar(&clientCA, "client-ca", "", "tls client certificate authority")
-	cmd.Flags().StringVar(&cert, "cert", "", "tls certificate")
-	cmd.Flags().StringVar(&key, "key", "", "tls key")
+	cmd.Flags().StringVar(&cert, "tls-cert", "", "tls certificate")
+	cmd.Flags().StringVar(&key, "tls-key", "", "tls key")
 	if err := cmd.Execute(); err != nil {
 		logrus.Fatal(err)
 	}
@@ -162,6 +162,7 @@ func run(ctx context.Context, opts ...storage.Option) error {
 	if err := packages.Init(ctx, router, domain); err != nil {
 		return err
 	}
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {})
 
 	s := http.Server{
 		BaseContext: func(lis net.Listener) context.Context {
