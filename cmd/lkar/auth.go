@@ -32,8 +32,18 @@ var (
 	passStdin bool
 
 	loginCmd = &cobra.Command{
-		Use:     "login [registry]",
-		Short:   "Login to an Artifact Registry repository",
+		Use:   "login [registry]",
+		Short: "Login to an Artifact Registry repository",
+		Example: `
+Log in with username and password from command line flags:
+  lkar login -u username -p password localhost:5000
+
+Log in with username and password from stdin:
+  lkar login -u username --password-stdin localhost:5000
+
+Log in with username and password in an interactive terminal and no TLS check:
+  lkar login --insecure localhost:5000
+`,
 		Args:    cobra.ExactArgs(1),
 		PreRunE: setup,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -69,7 +79,11 @@ var (
 					return fmt.Errorf("password is required")
 				}
 			}
-			req, err := http.NewRequestWithContext(cmd.Context(), http.MethodGet, url()+"/_auth/"+repository, nil)
+			u := urlWithType() + "/_auth/login"
+			if repository != "" {
+				u = urlWithType() + fmt.Sprintf("/_auth/%s/login", repository)
+			}
+			req, err := http.NewRequestWithContext(cmd.Context(), http.MethodGet, u, nil)
 			if err != nil {
 				return err
 			}

@@ -31,7 +31,7 @@ func newPkgDeleteCmd(typ string) *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url(typ)+"/"+repository+"/"+args[1], nil)
+			req, err := http.NewRequestWithContext(ctx, http.MethodDelete, urlWithType(typ)+"/"+repository+"/"+args[1], nil)
 			if err != nil {
 				return err
 			}

@@ -19,6 +19,7 @@ import (
 	"crypto/tls"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -26,22 +27,32 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/sirupsen/logrus"
+
+	"go.linka.cloud/artifact-registry/pkg/packages"
 )
 
 func formatSize(v any) string {
 	return humanize.Bytes(uint64(v.(int64)))
 }
 
-func url(typ ...string) string {
-	scheme := "https"
-	if plainHTTP {
-		scheme = "http"
-	}
-	base := scheme + "://" + registry
+func urlWithType(typ ...string) string {
+	base := url()
 	if len(typ) == 0 || strings.HasPrefix(registry, typ[0]+".") {
 		return base
 	}
 	return base + "/" + typ[0]
+}
+
+func urlHasType() bool {
+	return slices.Contains(packages.Providers(), strings.Split(registry, ".")[0])
+}
+
+func url() string {
+	scheme := "https"
+	if plainHTTP {
+		scheme = "http"
+	}
+	return scheme + "://" + registry
 }
 
 func repoURL() string {

@@ -40,7 +40,7 @@ func newPkgDownloadCmd(typ string) *cobra.Command {
 			if _, err := os.Stat(filepath.Dir(output)); err != nil {
 				return err
 			}
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, url(typ)+"/"+repository+"/"+args[1], nil)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlWithType(typ)+"/"+repository+"/"+args[1], nil)
 			if err != nil {
 				return err
 			}

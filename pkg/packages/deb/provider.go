@@ -54,15 +54,11 @@ func (p *provider) setup(w http.ResponseWriter, r *http.Request) {
 	}
 	repo, dist, component := mux.Vars(r)["repo"], mux.Vars(r)["distribution"], mux.Vars(r)["component"]
 	user, pass, _ := r.BasicAuth()
-	scheme := "https"
-	if r.TLS == nil {
-		scheme = "http"
-	}
-	args := setupArgs{
+	args := SetupArgs{
 		Name:      strings.Replace(repo, "/", "-", -1),
 		User:      user,
 		Password:  pass,
-		Scheme:    scheme,
+		Scheme:    packages.Scheme(r),
 		Host:      r.Host,
 		Path:      strings.TrimSuffix(r.URL.Path, fmt.Sprintf("/%s/%s/setup", dist, component)),
 		Dist:      dist,

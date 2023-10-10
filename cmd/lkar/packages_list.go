@@ -41,7 +41,11 @@ func newPkgListCmd(typ string) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, url(typ)+"/_packages/"+repository, nil)
+			u := fmt.Sprintf("%s/_packages/%s/%s", url(), typ, repository)
+			if urlHasType() {
+				u = fmt.Sprintf("%s/_packages/%s", url(), repository)
+			}
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 			if err != nil {
 				return err
 			}

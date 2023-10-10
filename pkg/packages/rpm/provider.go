@@ -59,15 +59,11 @@ func (p *provider) config(w http.ResponseWriter, r *http.Request) {
 		storage.Error(w, err)
 		return
 	}
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
 	host := strings.TrimSuffix(r.Host, "/")
 	if u, p, ok := r.BasicAuth(); ok {
 		host = fmt.Sprintf("%s:%s@%s", u, p, host)
 	}
-	url := fmt.Sprintf("%s://%s/%s", scheme, host, strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".repo"), "/"))
+	url := fmt.Sprintf("%s://%s/%s", packages.Scheme(r), host, strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".repo"), "/"))
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write([]byte(fmt.Sprintf(definition, strings.NewReplacer("/", "-").Replace(name), url, RepositoryPublicKey)))
@@ -81,15 +77,11 @@ func (p *provider) setup(w http.ResponseWriter, r *http.Request) {
 	}
 	repo := mux.Vars(r)["repo"]
 	user, pass, _ := r.BasicAuth()
-	scheme := "https"
-	if r.TLS == nil {
-		scheme = "http"
-	}
-	args := setupArgs{
+	args := SetupArgs{
 		Name:     strings.Replace(repo, "/", "-", -1),
 		User:     user,
 		Password: pass,
-		Scheme:   scheme,
+		Scheme:   packages.Scheme(r),
 		Host:     r.Host,
 		Path:     strings.TrimSuffix(r.URL.Path, "/setup"),
 	}

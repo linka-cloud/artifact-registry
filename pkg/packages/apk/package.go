@@ -40,9 +40,10 @@ type Package struct {
 	VersionMetadata VersionMetadata `json:"versionMetadata"`
 	FileMetadata    FileMetadata    `json:"fileMetadata"`
 
-	PkgSize int64  `json:"size"`
-	Branch  string `json:"branch"`
-	Repo    string `json:"repo"`
+	PkgSize  int64  `json:"size"`
+	Branch   string `json:"branch"`
+	Repo     string `json:"repo"`
+	FilePath string `json:"filePath"`
 
 	reader io.ReadCloser
 	digest digest.Digest
@@ -68,7 +69,7 @@ func (p *Package) Version() string {
 }
 
 func (p *Package) Path() string {
-	return fmt.Sprintf("%s/%s/%s/%s-%s.apk", p.Branch, p.Repo, p.FileMetadata.Architecture, p.PkgName, p.PkgVersion)
+	return p.FilePath
 }
 
 func (p *Package) Size() int64 {
@@ -88,10 +89,10 @@ func (p *Package) Close() error {
 
 // Metadata of an Alpine package
 type VersionMetadata struct {
+	Maintainer  string `json:"maintainer,omitempty"`
+	ProjectURL  string `json:"projectURL,omitempty"`
 	Description string `json:"description,omitempty"`
 	License     string `json:"license,omitempty"`
-	ProjectURL  string `json:"projectURL,omitempty"`
-	Maintainer  string `json:"maintainer,omitempty"`
 }
 
 type FileMetadata struct {
@@ -161,6 +162,7 @@ func NewPackage(r io.Reader, branch, repository string, size int64) (*Package, e
 				p.reader = reader
 				p.digest = digest.NewDigestFromEncoded(digest.SHA256, hex.EncodeToString(sha256))
 				p.PkgSize = size
+				p.FilePath = fmt.Sprintf("%s/%s/%s/%s-%s.apk", p.Branch, p.Repo, p.FileMetadata.Architecture, p.PkgName, p.PkgVersion)
 				_, err = reader.Seek(0, io.SeekStart)
 				return p, err
 			}

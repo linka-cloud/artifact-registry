@@ -24,17 +24,20 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.linka.cloud/grpc-toolkit/react"
 
 	artifact_registry "go.linka.cloud/artifact-registry"
 	"go.linka.cloud/artifact-registry/pkg/logger"
 	"go.linka.cloud/artifact-registry/pkg/packages"
 	"go.linka.cloud/artifact-registry/pkg/repository"
 	"go.linka.cloud/artifact-registry/pkg/storage"
+	"go.linka.cloud/artifact-registry/ui"
 )
 
 const (
@@ -156,13 +159,25 @@ func run(ctx context.Context, opts ...storage.Option) error {
 	k := sha256.Sum256([]byte(aesKey))
 	// TODO(adphi): client tls
 	ctx = storage.WithOptions(ctx, append(opts, storage.WithKey(k[:]))...)
+	router.Path("/_/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 	if err := repository.Init(ctx, router, domain); err != nil {
 		return err
 	}
 	if err := packages.Init(ctx, router, domain); err != nil {
 		return err
 	}
-	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {})
+
+	uih, err := react.NewHandler(ui.UI, "build")
+	if err != nil {
+		return err
+	}
+	router.PathPrefix("/").Handler(uih)
+
+	if err := router.Walk(func(r *mux.Route, _ *mux.Router, _ []*mux.Route) error { return r.GetError() }); err != nil {
+		return err
+	}
 
 	s := http.Server{
 		BaseContext: func(lis net.Listener) context.Context {
@@ -172,10 +187,17 @@ func run(ctx context.Context, opts ...storage.Option) error {
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			wrap := wrap(w)
 			start := time.Now()
+			remote := strings.Split(r.RemoteAddr, ":")[0]
+			for _, v := range r.Header["X-Forwarded-For"] {
+				if ip := net.ParseIP(v); ip != nil && !ip.IsPrivate() {
+					remote = v
+					break
+				}
+			}
 			log := logrus.WithFields(logrus.Fields{
 				"method":    r.Method,
 				"path":      r.URL.Path,
-				"remote":    r.RemoteAddr,
+				"remote":    remote,
 				"userAgent": r.UserAgent(),
 			})
 			if u, _, ok := r.BasicAuth(); ok {

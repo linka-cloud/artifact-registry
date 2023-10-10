@@ -17,22 +17,28 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
 	"oras.land/oras-go/v2/registry/remote"
 
 	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
+	"go.linka.cloud/artifact-registry/pkg/logger"
 	"go.linka.cloud/artifact-registry/pkg/packages"
 	"go.linka.cloud/artifact-registry/pkg/slices"
 	"go.linka.cloud/artifact-registry/pkg/storage"
 	"go.linka.cloud/artifact-registry/pkg/storage/auth"
 )
+
+const sessionName = "auth"
 
 var cache = cache2.New()
 
@@ -50,7 +56,11 @@ type Repository struct {
 	Packages    Stats      `json:"packages"`
 }
 
-func Auth(w http.ResponseWriter, r *http.Request) {
+type handler struct {
+	store sessions.Store
+}
+
+func (h *handler) Login(w http.ResponseWriter, r *http.Request) {
 	ctx := auth.Context(r.Context(), r)
 	o := storage.Options(ctx)
 	name, typ := mux.Vars(r)["repo"], mux.Vars(r)["type"]
@@ -60,6 +70,17 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reg.Client = o.Client(ctx, o.Host())
+	if name == "" {
+		skip := errors.New("skip")
+		if err := reg.Repositories(ctx, "", func(r []string) error {
+			return skip
+		}); err != nil && !errors.Is(err, skip) {
+			storage.Error(w, err)
+			return
+		}
+		h.saveCredentials(w, r)
+		return
+	}
 	repo, err := reg.Repository(ctx, name)
 	if err != nil {
 		storage.Error(w, err)
@@ -81,9 +102,38 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		h.saveCredentials(w, r)
 		return
 	}
 	http.Error(w, "No repository found", http.StatusNotFound)
+}
+
+func (h *handler) saveCredentials(w http.ResponseWriter, r *http.Request) {
+	user, pass, ok := r.BasicAuth()
+	if !ok {
+		return
+	}
+	s, err := h.store.Get(r, sessionName)
+	if err != nil {
+		logger.C(r.Context()).WithError(err).Error("failed to get session")
+		return
+	}
+	s.Values["user"] = user
+	s.Values["pass"] = pass
+	if err := s.Save(r, w); err != nil {
+		logger.C(r.Context()).WithError(err).Error("failed to save session")
+	}
+}
+
+func (h *handler) Logout(w http.ResponseWriter, r *http.Request) {
+	s, err := h.store.Get(r, sessionName)
+	if err != nil {
+		return
+	}
+	s.Options.MaxAge = -1
+	if err := s.Save(r, w); err != nil {
+		logger.C(r.Context()).WithError(err).Error("failed to save session")
+	}
 }
 
 func listImageRepositories(ctx context.Context, reg *remote.Registry, name string, typ ...string) ([]*Repository, error) {
@@ -170,7 +220,7 @@ func listImageRepositories(ctx context.Context, reg *remote.Registry, name strin
 	return out, nil
 }
 
-func ListRepositories(w http.ResponseWriter, r *http.Request) {
+func (h *handler) ListRepositories(w http.ResponseWriter, r *http.Request) {
 	ctx := auth.Context(r.Context(), r)
 	o := storage.Options(ctx)
 	typ := mux.Vars(r)["type"]
@@ -214,7 +264,7 @@ func ListRepositories(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ListImageRepositories(w http.ResponseWriter, r *http.Request) {
+func (h *handler) ListImageRepositories(w http.ResponseWriter, r *http.Request) {
 	ctx := auth.Context(r.Context(), r)
 	o := storage.Options(ctx)
 	name, typ := mux.Vars(r)["repo"], mux.Vars(r)["type"]
@@ -231,7 +281,7 @@ func ListImageRepositories(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func Packages(w http.ResponseWriter, r *http.Request) {
+func (h *handler) Packages(w http.ResponseWriter, r *http.Request) {
 	ctx := auth.Context(r.Context(), r)
 	typ, repo := mux.Vars(r)["type"], mux.Vars(r)["repo"]
 	p, err := packages.New(ctx, typ)
@@ -255,16 +305,36 @@ func Packages(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func Init(_ context.Context, r *mux.Router, domain string) error {
-	r.Path("/_auth/{repo:.+}").Methods(http.MethodGet, http.MethodPost).HandlerFunc(Auth)
-	r.Path("/_repositories").Methods(http.MethodGet).HandlerFunc(ListRepositories)
-	r.Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(ListImageRepositories)
-	subs := []*mux.Router{r.PathPrefix("/{type}/_packages/").Subrouter()}
+func (h *handler) cookie2Basic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s, err := h.store.Get(r, "auth")
+		if err != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		u, ok1 := s.Values["user"]
+		p, ok2 := s.Values["pass"]
+		if ok1 && ok2 {
+			r.SetBasicAuth(u.(string), p.(string))
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func Init(ctx context.Context, r *mux.Router, domain string) error {
+	h := &handler{store: sessions.NewCookieStore(storage.Options(ctx).Key())}
+	r.Use(h.cookie2Basic)
+	r.Path("/_auth/login").Methods(http.MethodGet, http.MethodPost).HandlerFunc(h.Login)
+	r.Path("/_auth/{repo:.+}/login").Methods(http.MethodGet, http.MethodPost).HandlerFunc(h.Login)
+	r.Path("/_auth/logout").Methods(http.MethodGet, http.MethodPost).HandlerFunc(h.Logout)
+	r.Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
+	r.PathPrefix("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListRepositories)
+	subs := []*mux.Router{r.PathPrefix(fmt.Sprintf("/_packages/{type:%s}/", strings.Join(packages.Providers(), "|"))).Subrouter()}
 	if domain != "" {
-		subs = append(subs, r.Host("{type}."+domain+"/_packages").Subrouter())
+		subs = append(subs, r.Host("{type}."+domain).PathPrefix("/_packages").Subrouter())
 	}
 	for _, v := range subs {
-		v.Path("/{repo:.+}").Methods(http.MethodGet).HandlerFunc(Packages)
+		v.Path("/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.Packages)
 	}
 	return nil
 }

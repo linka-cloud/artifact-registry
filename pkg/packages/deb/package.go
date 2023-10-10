@@ -53,6 +53,7 @@ type Package struct {
 
 	Component    string `json:"component"`
 	Distribution string `json:"distribution"`
+	FilePath     string `json:"filePath"`
 
 	MD5    string `json:"md5"`
 	SHA1   string `json:"sha1"`
@@ -82,7 +83,7 @@ func (p *Package) Name() string {
 }
 
 func (p *Package) Path() string {
-	return filepath.Join("pool", p.Distribution, p.Component, fmt.Sprintf("%s_%s_%s.deb", p.PkgName, p.PkgVersion, p.Architecture))
+	return p.FilePath
 }
 
 func (p *Package) Arch() string {
@@ -121,6 +122,7 @@ func NewPackage(r io.Reader, distribution, component string, size int64) (*Packa
 	}
 	pkg.Component = component
 	pkg.Distribution = distribution
+	pkg.FilePath = filepath.Join("pool", pkg.Distribution, pkg.Component, fmt.Sprintf("%s_%s_%s.deb", pkg.PkgName, pkg.PkgVersion, pkg.Architecture))
 	pkg.reader = reader
 	pkg.PkgSize = size
 	md5, sha1, sha256, sha512 := reader.Sums()

@@ -12,7 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:alpine
+FROM node:alpine as react-builder
+
+WORKDIR /app
+
+COPY ui/package.json ui/yarn.lock ./
+
+RUN yarn install --frozen-lockfile
+
+COPY ui/ ./
+
+RUN yarn build
+
+
+FROM golang:alpine as go-builder
 
 WORKDIR /app
 
@@ -22,15 +35,19 @@ RUN go mod download
 
 COPY cmd ./cmd
 COPY pkg ./pkg
+COPY version.go ./version.go
+COPY ui/ui.go ./ui/ui.go
 
-RUN go build -trimpath -ldflags="-s -w" -o artifact-registry ./cmd/artifact-registry
+COPY --from=react-builder /app/build ./ui/build
+
+RUN go build -trimpath -ldflags="-s -w" -o lkard ./cmd/lkard
 RUN go build -trimpath -ldflags="-s -w" -o lkar ./cmd/lkar
 
 FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates
 
-COPY --from=0 /app/artifact-registry /usr/local/bin/artifact-registry
-COPY --from=0 /app/lkar /usr/local/bin/lkar
+COPY --from=go-builder /app/lkard /usr/local/bin/lkard
+COPY --from=go-builder /app/lkar /usr/local/bin/lkar
 
-ENTRYPOINT ["/usr/local/bin/artifact-registry"]
+ENTRYPOINT ["/usr/local/bin/lkard"]

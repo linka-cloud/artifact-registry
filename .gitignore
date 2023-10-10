@@ -2,3 +2,5 @@
 tmp
 .env
 bin
+**/node_modules
+**/build

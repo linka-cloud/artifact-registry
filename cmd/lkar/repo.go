@@ -36,9 +36,9 @@ var (
 		Aliases: []string{"repo", "repos"},
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			u := url() + "/_repositories/" + repository
+			u := urlWithType() + "/_repositories/" + repository
 			if repository == "" {
-				u = url() + "/_repositories"
+				u = urlWithType() + "/_repositories"
 			}
 			req, err := http.NewRequestWithContext(cmd.Context(), http.MethodGet, u, nil)
 			if err != nil {

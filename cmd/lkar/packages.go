@@ -39,6 +39,7 @@ func newPkgCmd(typ string) *cobra.Command {
 		newPkgUploadCmd(typ),
 		newPkgDownloadCmd(typ),
 		newPkgDeleteCmd(typ),
+		newPkgSetupCmd(typ),
 	)
 	return pkgCmd
 }

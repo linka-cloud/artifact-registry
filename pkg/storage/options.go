@@ -47,6 +47,10 @@ func (o options) Host() string {
 	return o.host
 }
 
+func (o options) Key() []byte {
+	return o.key
+}
+
 type Option func(o *options)
 
 func WithHost(host string) Option {

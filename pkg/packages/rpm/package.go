@@ -39,6 +39,7 @@ type Package struct {
 	FileMetadata    *FileMetadata    `json:"fileMetadata"`
 	HashSHA256      string           `json:"hashSha256"`
 	FileSize        int64            `json:"size"`
+	FilePath        string           `json:"filePath"`
 
 	reader io.ReadCloser
 	digest digest.Digest
@@ -68,7 +69,7 @@ func (p *Package) Digest() digest.Digest {
 }
 
 func (p *Package) Path() string {
-	return fmt.Sprintf("%s-%s.%s.rpm", p.PkgName, p.PkgVersion, p.FileMetadata.Architecture)
+	return p.FilePath
 }
 
 func (p *Package) Size() int64 {
@@ -83,10 +84,10 @@ func (p *Package) Close() error {
 }
 
 type VersionMetadata struct {
-	License     string `json:"license,omitempty"`
 	ProjectURL  string `json:"projectURL,omitempty"`
 	Summary     string `json:"summary,omitempty"`
 	Description string `json:"description,omitempty"`
+	License     string `json:"license,omitempty"`
 }
 
 type FileMetadata struct {
@@ -228,6 +229,7 @@ func parsePackage(r io.ReadCloser) (*Package, error) {
 		},
 		reader: r,
 	}
+	p.FilePath = fmt.Sprintf("%s-%s.%s.rpm", p.PkgName, p.PkgVersion, p.FileMetadata.Architecture)
 
 	if !validation.IsValidURL(p.VersionMetadata.ProjectURL) {
 		p.VersionMetadata.ProjectURL = ""
