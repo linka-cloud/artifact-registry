@@ -6,6 +6,7 @@ import './App.css'
 import { ErrorBoundary } from './Components/ErrorBoundary'
 import { Layout } from './Components/Layout'
 import { Loading } from './Components/Loading'
+import { MultiLangCodeProvider } from './Components/MultiLangCode'
 
 import './Pages'
 import { Router } from './Router'
@@ -15,17 +16,19 @@ import { ColorModeThemeProvider } from './theme/ColorModeProvider'
 const App = () => (
   <ColorModeThemeProvider>
     <APIProvider>
-      <SnackbarProvider>
-        <BrowserRouter>
-          <Layout>
-            <ErrorBoundary>
-              <Suspense fallback={<Loading />}>
-                <Router />
-              </Suspense>
-            </ErrorBoundary>
-          </Layout>
-        </BrowserRouter>
-      </SnackbarProvider>
+      <MultiLangCodeProvider key="lkar" value="lkar">
+        <SnackbarProvider>
+          <BrowserRouter>
+            <Layout>
+              <ErrorBoundary>
+                <Suspense fallback={<Loading />}>
+                  <Router />
+                </Suspense>
+              </ErrorBoundary>
+            </Layout>
+          </BrowserRouter>
+        </SnackbarProvider>
+      </MultiLangCodeProvider>
     </APIProvider>
   </ColorModeThemeProvider>
 )

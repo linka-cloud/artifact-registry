@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Box, Card, CardContent, CardHeader, MenuItem, Stack, Typography } from '@mui/material'
+import { ExpandMoreOutlined } from '@mui/icons-material'
+import { Box, Card, CardActions, CardContent, CardHeader, IconButton, MenuItem, Stack, Typography } from '@mui/material'
 import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Package, RepositoryType, subRepositories, subRepositoryPackages } from '../../api/repository'
 import { useAPI } from '../../api/useAPI'
+import { curl, lkar } from '../../cli/cli'
 import { useAsync } from '../../hooks'
 import { packageTypeIcon } from '../../icons/packageTypeIcon'
 import { useSnackbar } from '../../snackbar'
@@ -26,6 +28,7 @@ import { Loading } from '../Loading'
 import { MultiLangCode, MultiLangCodeItem } from '../MultiLangCode'
 import { SimpleSelect } from '../SimpleSelect'
 import { PackageCard } from './PackageCard'
+import { RepoCard } from './RepoCard'
 
 const PackagesPage = () => {
   const api = useAPI()
@@ -73,25 +76,7 @@ const PackagesPage = () => {
         }
       </Stack>
       <Stack>
-        <Card>
-          <CardHeader avatar={packageTypeIcon(type)} title={repo + (sub ? '/' + sub : '')}
-                      titleTypographyProps={{ variant: 'h5' }} />
-          <CardContent>
-            <Typography variant='body2'>Run this command to setup the repository on your machine :</Typography>
-            <MultiLangCode key='lang'>
-              <MultiLangCodeItem
-                label='lkar'
-                code={`lkar ${type} setup ${window.location.host}/${repo} ${(sub ? `${sub.split("/")[0]} ${sub.split("/")[1]}` : '')}`}
-                language='bash'
-              />
-              <MultiLangCodeItem
-                label='curl'
-                code={`curl --user "$USER:$PASSWORD" ${window.location.protocol}//${window.location.host}/${type}/${repo + (sub ? '/' + sub : '')}/setup | sudo sh`}
-                language='bash'
-              />
-            </MultiLangCode>
-          </CardContent>
-        </Card>
+        <RepoCard type={type} repo={repo} sub={sub} />
       </Stack>
       <Stack>
         <Box flex={1}>
@@ -101,7 +86,7 @@ const PackagesPage = () => {
       <Stack>
         {
           subRepositoryPackages(packages, type, sub).map(({ name, ...rest }) => (
-            <PackageCard key={name} package={{ name, ...rest }} />
+            <PackageCard key={name} repo={repo} package={{ name, ...rest }} />
           ))
         }
       </Stack>

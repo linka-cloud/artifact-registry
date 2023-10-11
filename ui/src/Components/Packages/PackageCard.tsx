@@ -12,43 +12,99 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Balance, MemoryOutlined, UpdateOutlined } from '@mui/icons-material'
-import { Card, CardContent, CardHeader, Chip, Stack, Typography } from '@mui/material'
-import React from 'react'
+import { Balance, ExpandLessOutlined, ExpandMoreOutlined, MemoryOutlined, UpdateOutlined } from '@mui/icons-material'
+import {
+  Card,
+  CardActions,
+  CardContent,
+  CardHeader,
+  Chip,
+  Collapse,
+  IconButton,
+  Stack,
+  Typography,
+} from '@mui/material'
+import React, { useState } from 'react'
 import { Package } from '../../api/repository'
+import { useAPI } from '../../api/useAPI'
+import { curl, lkar } from '../../cli/cli'
 import { LinuxIcon } from '../../icons/LinuxIcon'
 import { packageTypeIcon } from '../../icons/packageTypeIcon'
+import { VersionIcon } from '../../icons/VersionIcon'
 import { defaultPadding, defaultSpacing } from '../../theme/theme'
 import { humanSize } from '../../utils'
 import { ExternalLink } from '../ExternalLink'
+import { MultiLangCode, MultiLangCodeItem } from '../MultiLangCode'
 
 export interface PackageCardProps {
+  repo: string
   package: Package
 }
 
-export const PackageCard = ({ package: {name, type, size, version, architecture, license, projectURL, description} }: PackageCardProps) => (
-  <Card>
-    <CardHeader
-      avatar={packageTypeIcon(type)}
-      title={name} subheader={humanSize(size)}
-      action={(
-        <Stack direction='row' padding={defaultPadding}>
-          <UpdateOutlined />
-          <Typography
-            sx={{ marginLeft: '4px !important' }}
-            variant='body2'>{version}</Typography>
+export const PackageCard = ({
+                              repo,
+                              package: {
+                                name,
+                                type,
+                                size,
+                                version,
+                                architecture,
+                                license,
+                                projectURL,
+                                description,
+                                filePath,
+                              },
+                            }: PackageCardProps) => {
+  const { credentials } = useAPI()
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <Card>
+      <CardHeader
+        avatar={packageTypeIcon(type)}
+        title={name} subheader={humanSize(size)}
+        action={(
+          <Stack direction='row' padding={defaultPadding} alignItems='center'>
+            <VersionIcon />
+            <Typography
+              sx={{ marginLeft: '4px !important' }}
+              variant='body2'>{version}</Typography>
+          </Stack>
+        )} />
+      <CardContent sx={{ pt: 0, pb: 0 }}>
+        <Stack direction='row' marginTop={0}>
+          <Chip icon={<LinuxIcon />} label='linux' />
+          <Chip icon={<MemoryOutlined />} label={architecture} />
+          {license && <Chip icon={<Balance />} label={license} />}
         </Stack>
-      )} />
-    <CardContent sx={{ paddingTop: 0 }}>
-      <Stack direction='row' marginTop={0}>
-        <Chip icon={<LinuxIcon />} label='linux' />
-        <Chip icon={<MemoryOutlined />} label={architecture} />
-        {license && <Chip icon={<Balance />} label={license} />}
-      </Stack>
-      <Stack sx={{ marginTop: defaultSpacing }}>
-        <Typography variant='body2' fontStyle='italic'>{description}</Typography>
+        <Stack sx={{ marginTop: defaultSpacing }}>
+          <Typography variant='body2' fontStyle='italic'>{description}</Typography>
+        </Stack>
+      </CardContent>
+      <CardActions sx={{ justifyContent: projectURL ? 'space-between' : 'end' }}>
         {projectURL && <ExternalLink href={projectURL}>{projectURL}</ExternalLink>}
-      </Stack>
-    </CardContent>
-  </Card>
-)
+        <IconButton onClick={() => setExpanded(!expanded)}>
+          {expanded ? <ExpandLessOutlined /> : <ExpandMoreOutlined />}
+        </IconButton>
+      </CardActions>
+      <Collapse in={expanded} timeout='auto' unmountOnExit>
+        <CardContent sx={{pt: 0}}>
+          <Typography variant='h6'>Delete</Typography>
+          <MultiLangCode key='lang' title='Run this command on your machine to delete the package from the repository:'>
+            <MultiLangCodeItem
+              label='lkar'
+              code={lkar.delete(type, repo, filePath)}
+              hiddenCode={lkar.delete(type, repo, filePath, credentials)}
+              language='bash'
+            />
+            <MultiLangCodeItem
+              label='curl'
+              code={curl.delete(type, repo, filePath)}
+              hiddenCode={curl.delete(type, repo, filePath, credentials)}
+              language='bash'
+            />
+          </MultiLangCode>
+        </CardContent>
+      </Collapse>
+    </Card>
+  )
+}

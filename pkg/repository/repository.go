@@ -136,6 +136,23 @@ func (h *handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type credentials struct {
+	User     string `json:"user"`
+	Password string `json:"password"`
+}
+
+func (h *handler) Credentials(w http.ResponseWriter, r *http.Request) {
+	u, p, ok := r.BasicAuth()
+	if !ok {
+		http.Error(w, "No credentials", http.StatusUnauthorized)
+		return
+	}
+	if err := json.NewEncoder(w).Encode(credentials{User: u, Password: p}); err != nil {
+		storage.Error(w, err)
+		return
+	}
+}
+
 func listImageRepositories(ctx context.Context, reg *remote.Registry, name string, typ ...string) ([]*Repository, error) {
 	repo, err := reg.Repository(ctx, name)
 	if err != nil {
@@ -327,6 +344,8 @@ func Init(ctx context.Context, r *mux.Router, domain string) error {
 	r.Path("/_auth/login").Methods(http.MethodGet, http.MethodPost).HandlerFunc(h.Login)
 	r.Path("/_auth/{repo:.+}/login").Methods(http.MethodGet, http.MethodPost).HandlerFunc(h.Login)
 	r.Path("/_auth/logout").Methods(http.MethodGet, http.MethodPost).HandlerFunc(h.Logout)
+	// TODO(adphi): we should find a way to protect this to make it only available to the browser
+	r.Path("/_auth/credentials").Methods(http.MethodGet).HandlerFunc(h.Credentials)
 	r.Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
 	r.PathPrefix("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListRepositories)
 	subs := []*mux.Router{r.PathPrefix(fmt.Sprintf("/_packages/{type:%s}/", strings.Join(packages.Providers(), "|"))).Subrouter()}

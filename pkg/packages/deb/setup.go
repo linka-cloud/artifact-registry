@@ -58,7 +58,7 @@ func Setup(ctx context.Context, args SetupArgs, force bool) error {
 		repoAuth = fmt.Sprintf("%s://%s%s/%s/%s", args.Scheme, args.Host, args.Path, args.Dist, args.Component)
 	}
 
-	// Download repository key
+	// Pull repository key
 	r, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/repository.key", repoAuth), nil)
 	if err != nil {
 		return fmt.Errorf("failed to create repository key request: %w", err)

@@ -32,7 +32,7 @@ export const RepositoryCard = ({ repository: { name, type, size, lastUpdated, me
       avatar={packageTypeIcon(type)}
       title={name} subheader={humanSize(size)}
       action={(
-        <Stack direction='row' padding={defaultPadding}>
+        <Stack direction='row' padding={defaultPadding} alignItems='center'>
           <UpdateOutlined />
           <Typography
             sx={{ marginLeft: '4px !important' }}

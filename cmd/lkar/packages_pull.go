@@ -25,12 +25,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newPkgDownloadCmd(typ string) *cobra.Command {
+func newPkgPullCmd(typ string) *cobra.Command {
 	var output string
 	cmd := &cobra.Command{
-		Use:     fmt.Sprintf("download [repository] [path]"),
+		Use:     fmt.Sprintf("pull [repository] [path]"),
 		Short:   fmt.Sprintf("Download %s package from the repository", typ),
-		Aliases: []string{"dl", "get", "read"},
+		Aliases: []string{"dl", "get", "read", "download"},
 		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

@@ -36,8 +36,8 @@ func newPkgCmd(typ string) *cobra.Command {
 	}
 	pkgCmd.AddCommand(
 		newPkgListCmd(typ),
-		newPkgUploadCmd(typ),
-		newPkgDownloadCmd(typ),
+		newPkgPushCmd(typ),
+		newPkgPullCmd(typ),
 		newPkgDeleteCmd(typ),
 		newPkgSetupCmd(typ),
 	)

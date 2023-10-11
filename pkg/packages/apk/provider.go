@@ -100,8 +100,8 @@ func (p *provider) Routes() []*packages.Route {
 		},
 		{
 			Method: http.MethodPut,
-			Path:   "/{repo:.+}/{branch}/{repository}/upload",
-			Handler: packages.Upload(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
+			Path:   "/{repo:.+}/{branch}/{repository}/push",
+			Handler: packages.Push(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
 				branch, repo := mux.Vars(r)["branch"], mux.Vars(r)["repository"]
 				return NewPackage(reader, branch, repo, size)
 			}),
@@ -109,7 +109,7 @@ func (p *provider) Routes() []*packages.Route {
 		{
 			Method: http.MethodGet,
 			Path:   "/{repo:.+}/{branch}/{repository}/{architecture}/{filename}",
-			Handler: packages.Download(func(r *http.Request) string {
+			Handler: packages.Pull(func(r *http.Request) string {
 				branch, repo, arch, filename := mux.Vars(r)["branch"], mux.Vars(r)["repository"], mux.Vars(r)["architecture"], mux.Vars(r)["filename"]
 				return filepath.Join(branch, repo, arch, filename)
 			}),

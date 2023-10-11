@@ -26,7 +26,7 @@ import (
 func newPkgDeleteCmd(typ string) *cobra.Command {
 	return &cobra.Command{
 		Use:     fmt.Sprintf("delete [repository] [path]"),
-		Short:   fmt.Sprintf("Remove %s package from the repository", typ),
+		Short:   fmt.Sprintf("Delete %s package from the repository", typ),
 		Aliases: []string{"rm", "remove", "del"},
 		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

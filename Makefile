@@ -26,7 +26,7 @@ docker: docker-build docker-push
 
 .PHONY: docker-build
 docker-build:
-	@docker buildx $(DOCKER_BUILDX_ARGS) --pull -t $(REPOSITORY)/$(PROJECT):$(VERSION) .
+	@docker buildx $(DOCKER_BUILDX_ARGS) -t $(REPOSITORY)/$(PROJECT):$(VERSION) -t $(REPOSITORY)/$(PROJECT):dev .
 ifneq ($(TAG),)
 	@docker image tag $(REPOSITORY)/$(PROJECT):$(VERSION) $(REPOSITORY)/$(PROJECT):latest
 endif
@@ -34,6 +34,7 @@ endif
 .PHONY: docker-push
 docker-push:
 	@docker image push $(REPOSITORY)/$(PROJECT):$(VERSION)
+	@docker image push $(REPOSITORY)/$(PROJECT):dev
 ifneq ($(TAG),)
 	@docker image push $(REPOSITORY)/$(PROJECT):latest
 endif

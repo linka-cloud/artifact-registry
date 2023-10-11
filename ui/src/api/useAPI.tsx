@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import React, { PropsWithChildren, useContext } from 'react'
-import { usePersistedState } from '../hooks'
+import React, { PropsWithChildren, useContext, useEffect, useState } from 'react'
+import { useAsync, usePersistedState } from '../hooks'
 import { AsyncVoid, Void } from '../utils'
 import { API as _API, api } from './api'
 import { Credentials } from './schemas/login'
 
-type API = Omit<_API, 'login' | 'logout'>
+type API = Omit<_API, 'login' | 'logout' | 'credentials'>
 
 interface APIContext extends API {
   login: (credentials: Credentials, repo: string) => Promise<[boolean, Error?]>;
   logout: () => Promise<void>;
+  credentials?: Credentials;
   authenticated?: boolean;
   baseRepo?: string;
   setBaseRepo: (repo?: string) => void;
@@ -33,6 +34,7 @@ const apiContext = React.createContext<APIContext>({
   ...api,
   login: async () => [false],
   logout: AsyncVoid,
+  credentials: undefined,
   setBaseRepo: Void,
 })
 
@@ -45,6 +47,21 @@ export interface APIProviderProps extends PropsWithChildren<any> {
 export const APIProvider = ({ children }: APIProviderProps) => {
   const [baseRepo, setBaseRepo] = usePersistedState<string | undefined>(undefined, 'baseRepo')
   const [authenticated, setAuthenticated, loaded] = usePersistedState<boolean>(false, 'authenticated')
+  const [credentials, setCredentials] = useState<Credentials>()
+
+  useAsync(async () => {
+    if (!authenticated) {
+      setCredentials(undefined)
+      return
+    }
+    const [{user, password}, error] = await api.credentials()
+    if (error) {
+      console.error(error)
+      setCredentials(undefined)
+      return
+    }
+    setCredentials({user: user!!, password: password!!})
+  }, [authenticated])
   const login = async ({ user, password }: Credentials, repo: string = '') => {
     const [success, error] = await api.login(user, password, repo)
     if (success) setAuthenticated(true)
@@ -58,6 +75,7 @@ export const APIProvider = ({ children }: APIProviderProps) => {
   return <apiContext.Provider
     value={{
       ...api,
+      credentials,
       login,
       logout,
       authenticated: loaded ? authenticated : undefined,

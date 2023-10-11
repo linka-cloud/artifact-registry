@@ -17,10 +17,12 @@ import { APKPackage } from './apk'
 import { DEBPackage } from './deb'
 import { makePackage, Package, Repository, RepositoryType } from './repository'
 import { RPMPackage } from './rpm'
+import { Credentials } from './schemas/login'
 
 export interface API {
   login: (user: string, password: string, repo?: string) => Promise<[boolean, Error?]>
   logout: () => Promise<void>
+  credentials: () => Promise<[Partial<Credentials>, Error?]>
 
   repositories: (repo?: string) => Promise<[Repository[], Error?]>
   packages: (repo: string, type: RepositoryType) => Promise<[Package[], Error?]>
@@ -40,6 +42,14 @@ export const api: API = {
     }
   },
   logout: async () => fetch(`/_auth/logout`, { method: 'POST' }).then(AsyncVoid),
+
+  credentials: async () => {
+    const res = await fetch('/_auth/credentials')
+    if (!res.ok) {
+      return [{}, new Error(res.statusText)]
+    }
+    return [await res.json()] as [Credentials, Error?]
+  },
 
   repositories: async (repo: string | undefined = '') => {
     const res = await fetch(`/_repositories/${repo}`)

@@ -21,14 +21,16 @@ import '../xonokai.css'
 
 export interface CodeProps {
   code: string;
+  // hiddenCode is used to display a different code than the one copied to the clipboard
+  hiddenCode?: string;
   language?: Language;
   sx?: SxProps;
 }
 
-export const Code = ({ code, language, sx }: CodeProps) => {
+export const Code = ({ code, hiddenCode, language, sx }: CodeProps) => {
   const [copied, setCopied] = useState(false)
   const copyToClipboard = async () => {
-    copy(code, { format: 'text/plain', onCopy: () => setCopied(true) })
+    copy(hiddenCode || code, { format: 'text/plain', onCopy: () => setCopied(true) })
     setCopied(true)
   }
   return (

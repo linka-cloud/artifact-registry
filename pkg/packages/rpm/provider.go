@@ -104,22 +104,22 @@ func (p *provider) Routes() []*packages.Route {
 		},
 		{
 			Method: http.MethodPut,
-			Path:   "/{repo:.+}/upload",
-			Handler: packages.Upload(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
+			Path:   "/{repo:.+}/push",
+			Handler: packages.Push(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
 				return NewPackage(reader, size, key)
 			}),
 		},
 		{
 			Method: http.MethodGet,
 			Path:   "/{repo:.+}/repodata/{filename}",
-			Handler: packages.Download(func(r *http.Request) string {
+			Handler: packages.Pull(func(r *http.Request) string {
 				return mux.Vars(r)["filename"]
 			}),
 		},
 		{
 			Method: http.MethodGet,
 			Path:   "/{repo:.+}/{filename}",
-			Handler: packages.Download(func(r *http.Request) string {
+			Handler: packages.Pull(func(r *http.Request) string {
 				return mux.Vars(r)["filename"]
 			}),
 		},

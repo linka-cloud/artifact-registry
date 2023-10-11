@@ -79,14 +79,14 @@ func (p *provider) Routes() []*packages.Route {
 		{
 			Method: http.MethodGet,
 			Path:   "/{repo:.+}/" + RepositoryPublicKey,
-			Handler: packages.Download(func(r *http.Request) string {
+			Handler: packages.Pull(func(r *http.Request) string {
 				return RepositoryPublicKey
 			}),
 		},
 		{
 			Method: http.MethodGet,
 			Path:   "/{repo:.+}/dists/{distribution}/{filename}",
-			Handler: packages.Download(func(r *http.Request) string {
+			Handler: packages.Pull(func(r *http.Request) string {
 				dist, filename := mux.Vars(r)["distribution"], mux.Vars(r)["filename"]
 				return filepath.Join("dists", dist, filename)
 			}),
@@ -94,15 +94,15 @@ func (p *provider) Routes() []*packages.Route {
 		{
 			Method: http.MethodGet,
 			Path:   "/{repo:.+}/dists/{distribution}/{component}/{architecture}/{filename}",
-			Handler: packages.Download(func(r *http.Request) string {
+			Handler: packages.Pull(func(r *http.Request) string {
 				dist, component, architecture, filename := mux.Vars(r)["distribution"], mux.Vars(r)["component"], mux.Vars(r)["architecture"], mux.Vars(r)["filename"]
 				return filepath.Join("dists", dist, component, architecture, filename)
 			}),
 		},
 		{
 			Method: http.MethodPut,
-			Path:   "/{repo:.+}/pool/{distribution}/{component}/upload",
-			Handler: packages.Upload(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
+			Path:   "/{repo:.+}/pool/{distribution}/{component}/push",
+			Handler: packages.Push(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
 				distribution, component := mux.Vars(r)["distribution"], mux.Vars(r)["component"]
 				return NewPackage(reader, distribution, component, size)
 			}),
@@ -110,7 +110,7 @@ func (p *provider) Routes() []*packages.Route {
 		{
 			Method: http.MethodGet,
 			Path:   "/{repo:.+}/pool/{distribution}/{component}/{name}_{version}_{architecture}.deb",
-			Handler: packages.Download(func(r *http.Request) string {
+			Handler: packages.Pull(func(r *http.Request) string {
 				dist, component, name, version, architecture := mux.Vars(r)["distribution"], mux.Vars(r)["component"], mux.Vars(r)["name"], mux.Vars(r)["version"], mux.Vars(r)["architecture"]
 				return filepath.Join("pool", dist, component, name+"_"+version+"_"+architecture+".deb")
 			}),

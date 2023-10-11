@@ -23,7 +23,7 @@ import (
 
 type ArtifactFactory func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error)
 
-func Upload(fn ArtifactFactory) http.HandlerFunc {
+func Push(fn ArtifactFactory) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		var (
@@ -51,7 +51,7 @@ func Upload(fn ArtifactFactory) http.HandlerFunc {
 	}
 }
 
-func Download(fn func(r *http.Request) string) http.HandlerFunc {
+func Pull(fn func(r *http.Request) string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := storage.FromContext(r.Context()).ServeFile(w, r, fn(r)); err != nil {
 			storage.Error(w, err)

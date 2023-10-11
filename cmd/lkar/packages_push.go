@@ -25,30 +25,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newPkgUploadCmd(typ string) *cobra.Command {
-	use := fmt.Sprintf("upload [repository] [path]")
+func newPkgPushCmd(typ string) *cobra.Command {
+	use := fmt.Sprintf("push [repository] [path]")
 	index := 1
 	upload := func(args []string) string {
-		return "/upload"
+		return "/push"
 	}
 	switch typ {
 	case "apk":
-		use = fmt.Sprintf("upload [repository] [branch] [apk-repository] [path]")
+		use = fmt.Sprintf("push [repository] [branch] [apk-repository] [path]")
 		index = 3
 		upload = func(args []string) string {
-			return path.Join("/", args[1], args[2], "upload")
+			return path.Join("/", args[1], args[2], "push")
 		}
 	case "deb":
-		use = fmt.Sprintf("upload [repository] [distribution] [component] [path]")
+		use = fmt.Sprintf("push [repository] [distribution] [component] [path]")
 		index = 3
 		upload = func(args []string) string {
-			return path.Join("/", args[1], args[2], "upload")
+			return path.Join("/", args[1], args[2], "push")
 		}
 	}
 	return &cobra.Command{
 		Use:     use,
-		Short:   fmt.Sprintf("Upload %s package to the repository", typ),
-		Aliases: []string{"up", "put", "create"},
+		Short:   fmt.Sprintf("Push %s package to the repository", typ),
+		Aliases: []string{"put", "create", "upload"},
 		Args:    cobra.ExactArgs(index + 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

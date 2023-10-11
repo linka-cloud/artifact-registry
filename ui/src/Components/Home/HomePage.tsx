@@ -16,6 +16,7 @@ import { Box, Card, CardContent, CardHeader, Stack, Typography } from '@mui/mate
 import React, { useState } from 'react'
 import { Repository } from '../../api/repository'
 import { useAPI } from '../../api/useAPI'
+import { lkar } from '../../cli/cli'
 import { useAsync } from '../../hooks'
 import { useSnackbar } from '../../snackbar'
 
@@ -55,11 +56,11 @@ const HomePage = () => {
             />
           }
           <CardContent>
-            <Typography variant='body2'>Run this command to log into the repository on your machine :</Typography>
-            <MultiLangCode key='lang'>
+            <MultiLangCode key='lang' title='Run this command to log into the repository on your machine :'>
               <MultiLangCodeItem
                 label='lkar'
-                code={`lkar login -u $USER -p $PASSWORD ${window.location.host}${api.baseRepo ? '/' + api.baseRepo : ''}`}
+                code={lkar.login(api.baseRepo)}
+                hiddenCode={lkar.login(api.baseRepo, api.credentials)}
                 language='bash'
               />
             </MultiLangCode>
