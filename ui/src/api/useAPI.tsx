@@ -64,9 +64,9 @@ export const APIProvider = ({ children }: APIProviderProps) => {
   }, [authenticated])
 
   useAsync(async () => {
-    if (authenticated) return
+    if (!loaded || authenticated) return
     // check if auth is required
-    const [_, error] = await api.repositories()
+    const [_, error] = await api.repositories(baseRepo)
     if (error) {
       setAuthenticated(false)
       return
