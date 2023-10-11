@@ -20,7 +20,7 @@ import { RepositoryType } from '../api/repository'
 import { Credentials } from '../api/schemas/login'
 import { useAPI } from '../api/useAPI'
 import { LoginForm } from '../Components/Login/LoginForm'
-import lkarLogo from '../lkar-logo.png'
+import lkarLogo from '../img/lkar-logo.png'
 import { MainRoutesRegistry } from '../routes'
 import { useSnackbar } from '../snackbar'
 

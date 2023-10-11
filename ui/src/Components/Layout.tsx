@@ -14,6 +14,7 @@
 
 import {
   DarkModeOutlined,
+  GitHub,
   LightModeOutlined,
   PowerSettingsNewOutlined,
   SettingsBrightnessOutlined,
@@ -35,9 +36,12 @@ import React, { useEffect, useRef } from 'react'
 import { Link as RouterLink, useLocation } from 'react-router-dom'
 import { useAPI } from '../api/useAPI'
 import { useIsMobile } from '../hooks'
+import LKARLogo from '../img/lkar-no-background.png'
+import LinkaCloudLogo from '../img/linka-cloud-no-background-logo.png'
 import { MainRoutesRegistry } from '../routes'
 import { useUiMode } from '../theme/ColorModeProvider'
 import { defaultPadding } from '../theme/theme'
+import { ExternalLink } from './ExternalLink'
 
 interface LinkRouterProps extends LinkProps {
   to: string;
@@ -66,8 +70,28 @@ const Header = (props: StackProps) => {
   const pathnames = location.pathname.split('/').filter((x) => x)
   const routeLabel = (path: string) => Object.values(MainRoutesRegistry).find((r) => r.path === path)?.label
   return (
-    <Stack component='header' direction='row' paddingTop={defaultPadding} {...props}>
-      <Breadcrumbs sx={{ flex: 1, alignSelf: 'center' }} aria-label='breadcrumb'>
+    <Stack component='header' paddingTop={defaultPadding} {...props}>
+      <Stack direction='row' justifyContent='space-between'>
+        <Box component='img' src={LKARLogo} width={100} sx={{padding: defaultPadding, paddingLeft: '0 !important'}}/>
+        <ButtonGroup>
+          <Tooltip title={`Switch to ${mode === 'light' ? 'Dark' : 'Light'} mode`}>
+            <IconButton onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}>
+              {mode === 'light' ? <DarkModeOutlined /> : <LightModeOutlined />}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={`Use system settings`}>
+            <IconButton onClick={() => setMode(undefined)}>
+              <SettingsBrightnessOutlined />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={`logout`}>
+            <IconButton component={Link} href='/logout'>
+              <PowerSettingsNewOutlined />
+            </IconButton>
+          </Tooltip>
+        </ButtonGroup>
+      </Stack>
+      <Breadcrumbs aria-label='breadcrumb'>
         <LinkRouter underline='hover' color='inherit' to='/'>
           {routeLabel('/')}
         </LinkRouter>
@@ -86,26 +110,30 @@ const Header = (props: StackProps) => {
           )
         })}
       </Breadcrumbs>
-      <ButtonGroup>
-        <Tooltip title={`Switch to ${mode === 'light' ? 'Dark' : 'Light'} mode`}>
-          <IconButton onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}>
-            {mode === 'light' ? <DarkModeOutlined /> : <LightModeOutlined />}
-          </IconButton>
-        </Tooltip>
-        <Tooltip title={`Use system settings`}>
-          <IconButton onClick={() => setMode(undefined)}>
-            <SettingsBrightnessOutlined />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title={`logout`}>
-          <IconButton component={Link} href='/logout'>
-            <PowerSettingsNewOutlined />
-          </IconButton>
-        </Tooltip>
-      </ButtonGroup>
     </Stack>
   )
 }
+
+const Footer = () => (
+  <Stack
+    component='footer'
+    direction='row'
+    alignItems='center'
+    justifyContent='space-between'
+    padding={theme => theme.spacing(1)}
+    paddingTop={8}
+  >
+    <Box component='img' src={LinkaCloudLogo} flex={2} width={150} />
+    <Typography variant='caption' color='text.secondary' flex={10} textAlign='center'>
+      © 2023 Linka Cloud. All rights reserved.
+    </Typography>
+    <Stack sx={{ flex: 2 }}>
+      <IconButton component={ExternalLink} href='https://github.com/linka-cloud/artifact-registry' sx={{alignSelf: "end", paddingRight: 0}}>
+        <GitHub />
+      </IconButton>
+    </Stack>
+  </Stack>
+)
 
 export const TabletOrDesktopLayout = ({ children }: React.PropsWithChildren<any>) => {
   const { authenticated } = useAPI()
@@ -119,10 +147,11 @@ export const TabletOrDesktopLayout = ({ children }: React.PropsWithChildren<any>
         flexDirection: 'column',
         flex: 1,
         // marginLeft: isXl ? 0 : undefined,
-        marginBottom: '42px',
+        marginBottom: defaultPadding,
       }}>
         <Header padding={0} paddingLeft={1} paddingBottom={(theme) => theme.spacing(2)} />
-        <Stack flex={1}>{children}</Stack>
+        <Stack component='main' flex={1}>{children}</Stack>
+        <Footer />
       </Container>
     </Stack>
   ) : (
@@ -168,6 +197,7 @@ export const MobileLayout = ({ children }: React.PropsWithChildren<any>) => {
           <Stack flex={1}>
             {children}
           </Stack>
+          <Footer />
         </Stack>
       </Box>
     </>

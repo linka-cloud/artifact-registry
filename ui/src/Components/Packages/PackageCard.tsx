@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Balance, ExpandLessOutlined, ExpandMoreOutlined, MemoryOutlined, UpdateOutlined } from '@mui/icons-material'
+import { ExpandLessOutlined, ExpandMoreOutlined, MemoryOutlined } from '@mui/icons-material'
 import {
   Card,
   CardActions,
@@ -28,6 +28,7 @@ import React, { useState } from 'react'
 import { Package } from '../../api/repository'
 import { useAPI } from '../../api/useAPI'
 import { curl, lkar } from '../../cli/cli'
+import { BalanceIcon } from '../../icons/BalanceIcon'
 import { LinuxIcon } from '../../icons/LinuxIcon'
 import { packageTypeIcon } from '../../icons/packageTypeIcon'
 import { VersionIcon } from '../../icons/VersionIcon'
@@ -72,9 +73,9 @@ export const PackageCard = ({
         )} />
       <CardContent sx={{ pt: 0, pb: 0 }}>
         <Stack direction='row' marginTop={0}>
-          <Chip icon={<LinuxIcon />} label='linux' />
+          <Chip icon={<LinuxIcon sx={{ padding: 0.15 }} />} label='linux' />
           <Chip icon={<MemoryOutlined />} label={architecture} />
-          {license && <Chip icon={<Balance />} label={license} />}
+          {license && <Chip icon={<BalanceIcon sx={{ padding: 0.25 }} />} label={license} />}
         </Stack>
         <Stack sx={{ marginTop: defaultSpacing }}>
           <Typography variant='body2' fontStyle='italic'>{description}</Typography>
@@ -87,7 +88,7 @@ export const PackageCard = ({
         </IconButton>
       </CardActions>
       <Collapse in={expanded} timeout='auto' unmountOnExit>
-        <CardContent sx={{pt: 0}}>
+        <CardContent sx={{ pt: 0 }}>
           <Typography variant='h6'>Delete</Typography>
           <MultiLangCode key='lang' title='Run this command on your machine to delete the package from the repository:'>
             <MultiLangCodeItem
