@@ -90,7 +90,7 @@ export const PackageCard = ({
       <Collapse in={expanded} timeout='auto' unmountOnExit>
         <CardContent sx={{ pt: 0 }}>
           <Typography variant='h6'>Delete</Typography>
-          <MultiLangCode key='lang' title='Run this command on your machine to delete the package from the repository:'>
+          <MultiLangCode storageKey='lang' title='Run this command on your machine to delete the package from the repository:'>
             <MultiLangCodeItem
               label='lkar'
               code={lkar.delete(type, repo, filePath)}

@@ -49,7 +49,7 @@ const PackagesPage = () => {
     console.log(packages)
     setPackages(packages)
     if (error) {
-      errorSnackbar(error)
+      errorSnackbar(error.message)
     }
     setLoading(false)
   }, [])

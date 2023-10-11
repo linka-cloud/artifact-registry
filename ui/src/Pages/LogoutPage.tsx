@@ -20,9 +20,11 @@ import { MainRoutesRegistry } from '../routes'
 
 export const LogoutPage = () => {
   const navigate = useNavigate()
-  const { logout } = useAPI()
+  const { logout, authenticated } = useAPI()
   useAsyncOnce(async () => {
-    await logout()
+    if (authenticated) {
+      await logout()
+    }
     navigate(MainRoutesRegistry.login.navigate(), { replace: true })
   })
   return null

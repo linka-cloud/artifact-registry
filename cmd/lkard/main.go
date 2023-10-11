@@ -30,6 +30,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.linka.cloud/env"
 	"go.linka.cloud/grpc-toolkit/react"
 
 	artifact_registry "go.linka.cloud/artifact-registry"
@@ -41,10 +42,16 @@ import (
 )
 
 const (
-	EnvAddr    = "ARTIFACT_REGISTRY_ADDRESS"
-	EnvBackend = "ARTIFACT_REGISTRY_BACKEND"
-	EnvKey     = "ARTIFACT_REGISTRY_AES_KEY"
-	EnvDomain  = "ARTIFACT_REGISTRY_DOMAIN"
+	EnvAddr         = "ARTIFACT_REGISTRY_ADDRESS"
+	EnvBackend      = "ARTIFACT_REGISTRY_BACKEND"
+	EnvKey          = "ARTIFACT_REGISTRY_AES_KEY"
+	EnvDomain       = "ARTIFACT_REGISTRY_DOMAIN"
+	EnvNoHTTPS      = "ARTIFACT_REGISTRY_NO_HTTPS"
+	EnvInsecure     = "ARTIFACT_REGISTRY_INSECURE"
+	EnvTagArtifacts = "ARTIFACT_REGISTRY_TAG_ARTIFACTS"
+	EnvClientCA     = "ARTIFACT_REGISTRY_CLIENT_CA"
+	EnvTLSCert      = "ARTIFACT_REGISTRY_TLS_CERT"
+	EnvTLSKey       = "ARTIFACT_REGISTRY_TLS_KEY"
 )
 
 var (
@@ -108,16 +115,16 @@ var (
 
 func main() {
 	cmd.AddCommand(cmdVersion)
-	cmd.Flags().StringVar(&addr, "addr", envDefault(EnvAddr, addr), "address to listen on [$"+EnvAddr+"]")
-	cmd.Flags().StringVar(&backend, "backend", envDefault(EnvBackend, backend), "registry backend [$"+EnvBackend+"]")
-	cmd.Flags().StringVar(&aesKey, "aes-key", envDefault(EnvKey, aesKey), "AES key to encrypt the repositories keys [$"+EnvKey+"]")
-	cmd.Flags().StringVar(&domain, "domain", envDefault(EnvDomain, domain), "domain to use to serve the repositories as subdomains [$"+EnvDomain+"]")
-	cmd.Flags().BoolVar(&noHTTPS, "no-https", noHTTPS, "disable backend registry client https")
-	cmd.Flags().BoolVar(&insecure, "insecure", insecure, "disable backend registry client tls verification")
-	cmd.Flags().BoolVar(&tagPerArtifact, "tag-artifacts", tagPerArtifact, "tag artifacts manifests")
-	cmd.Flags().StringVar(&clientCA, "client-ca", "", "tls client certificate authority")
-	cmd.Flags().StringVar(&cert, "tls-cert", "", "tls certificate")
-	cmd.Flags().StringVar(&key, "tls-key", "", "tls key")
+	cmd.Flags().StringVar(&addr, "addr", env.GetDefault(EnvAddr, addr), "address to listen on [$"+EnvAddr+"]")
+	cmd.Flags().StringVar(&backend, "backend", env.GetDefault(EnvBackend, backend), "registry backend hostname (and port if not 443 or 80) [$"+EnvBackend+"]")
+	cmd.Flags().StringVar(&aesKey, "aes-key", env.GetDefault(EnvKey, aesKey), "AES key to encrypt the repositories keys [$"+EnvKey+"]")
+	cmd.Flags().StringVar(&domain, "domain", env.GetDefault(EnvDomain, domain), "domain to use to serve the repositories as subdomains [$"+EnvDomain+"]")
+	cmd.Flags().BoolVar(&noHTTPS, "no-https", env.GetDefault(EnvNoHTTPS, noHTTPS), "disable backend registry client https [$"+EnvNoHTTPS+"]")
+	cmd.Flags().BoolVar(&insecure, "insecure", env.GetDefault(EnvInsecure, insecure), "disable backend registry client tls verification [$"+EnvInsecure+"]")
+	cmd.Flags().BoolVar(&tagPerArtifact, "tag-artifacts", env.GetDefault(EnvTagArtifacts, tagPerArtifact), "tag artifacts manifests [$"+EnvTagArtifacts+"]")
+	cmd.Flags().StringVar(&clientCA, "client-ca", env.Get[string](EnvClientCA), "tls client certificate authority [$"+EnvClientCA+"]")
+	cmd.Flags().StringVar(&cert, "tls-cert", env.Get[string](EnvTLSCert), "tls certificate [$"+EnvTLSCert+"]")
+	cmd.Flags().StringVar(&key, "tls-key", env.Get[string](EnvTLSKey), "tls key [$"+EnvTLSKey+"]")
 	if err := cmd.Execute(); err != nil {
 		logrus.Fatal(err)
 	}
@@ -157,7 +164,6 @@ func run(ctx context.Context, opts ...storage.Option) error {
 	logrus.Infof("intializing artifact registry using backend %s", backend)
 	router := mux.NewRouter()
 	k := sha256.Sum256([]byte(aesKey))
-	// TODO(adphi): client tls
 	ctx = storage.WithOptions(ctx, append(opts, storage.WithKey(k[:]))...)
 	router.Path("/_/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -226,11 +232,4 @@ func run(ctx context.Context, opts ...storage.Option) error {
 		return s.ListenAndServeTLS(cert, key)
 	}
 	return s.ListenAndServe()
-}
-
-func envDefault(key string, def string) string {
-	if v, ok := os.LookupEnv(key); ok {
-		return v
-	}
-	return def
 }

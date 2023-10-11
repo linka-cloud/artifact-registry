@@ -47,19 +47,19 @@ export interface MultiLangCodeItemProps extends CodeProps {
 }
 
 export interface MultiLangCodeContext {
-  key: string
+  storageKey: string
   value?: string
   setValue: (v: string) => void
 }
 
-const multiLangCodeContext = React.createContext<MultiLangCodeContext>({ key: '', value: '', setValue: Void })
+const multiLangCodeContext = React.createContext<MultiLangCodeContext>({ storageKey: '', value: '', setValue: Void })
 
-export type MultiLangCodeProviderProps = PropsWithChildren<any> & MultiLangCodeContext
+export interface MultiLangCodeProviderProps extends PropsWithChildren<any>, Omit<MultiLangCodeContext, 'setValue'> {}
 
-export const MultiLangCodeProvider = ({ children, key, value: _value }: MultiLangCodeProviderProps) => {
-  const [value, setValue] = usePersistedState(_value, 'MultiLangCode-' + key)
+export const MultiLangCodeProvider = ({ children, storageKey, value: _value }: MultiLangCodeProviderProps) => {
+  const [value, setValue] = usePersistedState(_value, 'MultiLangCode-' + storageKey)
   return (
-    <multiLangCodeContext.Provider value={{ key, value, setValue }}>
+    <multiLangCodeContext.Provider value={{ storageKey, value, setValue }}>
       {children}
     </multiLangCodeContext.Provider>
   )
@@ -72,7 +72,7 @@ export const useMultiLangCode = () => {
 export const MultiLangCodeItem = (props: MultiLangCodeItemProps) => <Code {...props} />
 
 export interface MultiLangCodeProps {
-  key: string
+  storageKey: string
   title?: string
   children: React.ReactElement<MultiLangCodeItemProps> | React.ReactElement<MultiLangCodeItemProps>[]
 }

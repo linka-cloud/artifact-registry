@@ -36,7 +36,7 @@ export const RepoCard = ({type, repo, sub}: RepoCardProps) => {
                   titleTypographyProps={{ variant: 'h5' }} />
       <CardContent sx={{pt: 0, pb: 0}}>
         <Typography variant='h6'>Setup</Typography>
-        <MultiLangCode key='lang' title='Run this command to setup the repository on your machine :'>
+        <MultiLangCode storageKey='lang' title='Run this command to setup the repository on your machine :'>
           <MultiLangCodeItem
             label='lkar'
             code={lkar.setup(type, repo, sub)}
@@ -59,7 +59,7 @@ export const RepoCard = ({type, repo, sub}: RepoCardProps) => {
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <CardContent sx={{pt: 0}}>
           <Typography variant='h6'>Push</Typography>
-          <MultiLangCode key='lang' title='Run this command on your machine to push a package to the repository :'>
+          <MultiLangCode storageKey='lang' title='Run this command on your machine to push a package to the repository :'>
             <MultiLangCodeItem
               label='lkar'
               code={lkar.push(type, repo, sub)}

@@ -69,7 +69,7 @@ func (h *handler) Login(w http.ResponseWriter, r *http.Request) {
 		storage.Error(w, err)
 		return
 	}
-	reg.Client = o.Client(ctx, o.Host())
+	o.SetClient(ctx, (*remote.Repository)(&reg.RepositoryOptions))
 	if name == "" {
 		skip := errors.New("skip")
 		if err := reg.Repositories(ctx, "", func(r []string) error {
@@ -142,11 +142,11 @@ type credentials struct {
 }
 
 func (h *handler) Credentials(w http.ResponseWriter, r *http.Request) {
-	u, p, ok := r.BasicAuth()
-	if !ok {
-		http.Error(w, "No credentials", http.StatusUnauthorized)
-		return
-	}
+	u, p, _ := r.BasicAuth()
+	// if !ok {
+	// 	http.Error(w, "No credentials", http.StatusUnauthorized)
+	// 	return
+	// }
 	if err := json.NewEncoder(w).Encode(credentials{User: u, Password: p}); err != nil {
 		storage.Error(w, err)
 		return
@@ -246,7 +246,7 @@ func (h *handler) ListRepositories(w http.ResponseWriter, r *http.Request) {
 		storage.Error(w, err)
 		return
 	}
-	reg.Client = o.Client(ctx, o.Host())
+	o.SetClient(ctx, (*remote.Repository)(&reg.RepositoryOptions))
 	var repos []string
 	if err := reg.Repositories(ctx, "", func(r []string) error {
 		repos = append(repos, r...)
@@ -275,6 +275,9 @@ func (h *handler) ListRepositories(w http.ResponseWriter, r *http.Request) {
 		storage.Error(w, err)
 		return
 	}
+	if len(out) == 0 {
+		out = []*Repository{}
+	}
 	if err := json.NewEncoder(w).Encode(out); err != nil {
 		storage.Error(w, err)
 		return
@@ -290,8 +293,15 @@ func (h *handler) ListImageRepositories(w http.ResponseWriter, r *http.Request) 
 		storage.Error(w, err)
 		return
 	}
-	reg.Client = o.Client(ctx, o.Host())
+	o.SetClient(ctx, (*remote.Repository)(&reg.RepositoryOptions))
 	out, err := listImageRepositories(ctx, reg, name, typ)
+	if err != nil {
+		storage.Error(w, err)
+		return
+	}
+	if len(out) == 0 {
+		out = []*Repository{}
+	}
 	if err := json.NewEncoder(w).Encode(out); err != nil {
 		storage.Error(w, err)
 		return

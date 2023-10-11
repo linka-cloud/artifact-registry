@@ -46,7 +46,7 @@ export interface APIProviderProps extends PropsWithChildren<any> {
 
 export const APIProvider = ({ children }: APIProviderProps) => {
   const [baseRepo, setBaseRepo] = usePersistedState<string | undefined>(undefined, 'baseRepo')
-  const [authenticated, setAuthenticated, loaded] = usePersistedState<boolean>(false, 'authenticated')
+  const [authenticated, setAuthenticated, loaded] = usePersistedState<boolean|undefined>(false, 'authenticated')
   const [credentials, setCredentials] = useState<Credentials>()
 
   useAsync(async () => {
@@ -62,6 +62,18 @@ export const APIProvider = ({ children }: APIProviderProps) => {
     }
     setCredentials({user: user!!, password: password!!})
   }, [authenticated])
+
+  useAsync(async () => {
+    if (authenticated) return
+    // check if auth is required
+    const [_, error] = await api.repositories()
+    if (error) {
+      setAuthenticated(false)
+      return
+    }
+    setAuthenticated(true)
+  }, [loaded, authenticated])
+
   const login = async ({ user, password }: Credentials, repo: string = '') => {
     const [success, error] = await api.login(user, password, repo)
     if (success) setAuthenticated(true)
@@ -69,7 +81,7 @@ export const APIProvider = ({ children }: APIProviderProps) => {
   }
   const logout = async () => {
     await api.logout()
-    setAuthenticated(false)
+    setAuthenticated(undefined)
     setBaseRepo(undefined)
   }
   return <apiContext.Provider

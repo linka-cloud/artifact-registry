@@ -82,23 +82,29 @@ func copts(name string) oras.CopyOptions {
 	}
 }
 
-func (o options) Client(ctx context.Context, host string) remote.Client {
+func (o options) SetClient(ctx context.Context, reg *remote.Repository) {
 	a := auth2.FromContext(ctx)
 	if a == nil {
-		return http.DefaultClient
+		reg.Client = http.DefaultClient
+		reg.PlainHTTP = o.plainHTTP
+		return
 	}
 	u, p, ok := a.BasicAuth()
 	if !ok {
-		return http.DefaultClient
+		reg.Client = http.DefaultClient
+		reg.PlainHTTP = o.plainHTTP
+		return
 	}
 	h := sha256.New()
 	h.Write([]byte(u))
 	h.Write([]byte(p))
-	h.Write([]byte(host))
+	h.Write([]byte(o.host))
 	key := fmt.Sprintf("%x", h.Sum(nil))
 	if v, ok := clientCache.Get(key); ok {
 		clientCache.Set(key, v)
-		return v.(remote.Client)
+		reg.Client = v.(remote.Client)
+		reg.PlainHTTP = o.plainHTTP
+		return
 	}
 	c := &auth.Client{
 		Client: &http.Client{
@@ -110,7 +116,7 @@ func (o options) Client(ctx context.Context, host string) remote.Client {
 			},
 		},
 		// expectedHostAddress is of form ipaddr:port
-		Credential: auth.StaticCredential(host, auth.Credential{
+		Credential: auth.StaticCredential(o.host, auth.Credential{
 			Username: u,
 			Password: p,
 		}),
@@ -118,5 +124,6 @@ func (o options) Client(ctx context.Context, host string) remote.Client {
 		Cache: auth.NewCache(),
 	}
 	clientCache.Set(key, c)
-	return c
+	reg.Client = c
+	reg.PlainHTTP = o.plainHTTP
 }

@@ -16,7 +16,7 @@ import { ColorModeThemeProvider } from './theme/ColorModeProvider'
 const App = () => (
   <ColorModeThemeProvider>
     <APIProvider>
-      <MultiLangCodeProvider key="lkar" value="lkar">
+      <MultiLangCodeProvider storageKey="lkar" value="lkar">
         <SnackbarProvider>
           <BrowserRouter>
             <Layout>

@@ -53,11 +53,11 @@ export const LoadingDots: React.FC<Props> = ({ size, margin, background, duratio
     border-radius: 50%;
     animation: ${duration ? duration : '0.8s'} ${bounceLoading} infinite alternate;
 
-    &:nth-child(2n + 0) {
+    &:nth-of-type(2n + 0) {
       animation-delay: 0.3s;
     }
 
-    &:nth-child(3n + 0) {
+    &:nth-of-type(3n + 0) {
       animation-delay: 0.6s;
     }
   `

@@ -36,7 +36,7 @@ export const RepositoryCard = ({ repository: { name, type, size, lastUpdated, me
           <UpdateOutlined />
           <Typography
             sx={{ marginLeft: '4px !important' }}
-            variant='body2'>{moment(lastUpdated.toLocaleDateString()).fromNow()}</Typography>
+            variant='body2'>{moment(lastUpdated.getTime()).fromNow()}</Typography>
         </Stack>
       )} />
     <CardContent>

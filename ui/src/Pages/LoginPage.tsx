@@ -14,11 +14,11 @@
 
 import { Button, Card, Stack, TextField, Typography } from '@mui/material'
 import Box from '@mui/material/Box'
-import React, { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { RepositoryType } from '../api/repository'
+import React, { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Credentials } from '../api/schemas/login'
 import { useAPI } from '../api/useAPI'
+import { Loading } from '../Components/Loading'
 import { LoginForm } from '../Components/Login/LoginForm'
 import lkarLogo from '../img/lkar-logo.png'
 import { MainRoutesRegistry } from '../routes'
@@ -34,11 +34,13 @@ export const LoginPage = () => {
 
   const [creds, setCreds] = useState<Credentials>()
 
-  const { login: _login, authenticated, baseRepo: repo, setBaseRepo: setRepo } = useAPI()
+  const { login: _login, authenticated, baseRepo: repo, setBaseRepo: setRepo, repositories } = useAPI()
   useEffect(() => {
     console.log('authenticated:', authenticated, 'from:', from)
     if (authenticated) navigate(from !== '/login' && from !== '/logout' ? from : '/', { replace: true })
   }, [authenticated])
+
+  const loading = authenticated === undefined
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const login = async (c: Credentials) => {
@@ -62,7 +64,7 @@ export const LoginPage = () => {
     await login(creds!!)
     setIsSubmitting(false)
   }
-  return (
+  return loading ? <Loading /> : (
     <Stack flex={1} justifyContent='space-around'>
       <Card
         sx={{

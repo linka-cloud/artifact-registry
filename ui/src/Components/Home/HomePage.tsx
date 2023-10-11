@@ -35,7 +35,7 @@ const HomePage = () => {
     const [repos, error] = await api.repositories(api.baseRepo)
     setRepos(repos)
     if (error) {
-      errorSnackbar(error)
+      errorSnackbar(error.message)
     }
     setLoading(false)
   }, [])
@@ -56,7 +56,7 @@ const HomePage = () => {
             />
           }
           <CardContent>
-            <MultiLangCode key='lang' title='Run this command to log into the repository on your machine :'>
+            <MultiLangCode storageKey='lang' title='Run this command to log into the repository on your machine :'>
               <MultiLangCodeItem
                 label='lkar'
                 code={lkar.login(api.baseRepo)}

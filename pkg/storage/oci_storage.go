@@ -312,8 +312,7 @@ func (s *storage) newRepository(ctx context.Context, name string) (*remote.Repos
 	if err != nil {
 		return nil, err
 	}
-	rrepo.Client = s.opts.Client(ctx, s.opts.host)
-	rrepo.PlainHTTP = s.opts.plainHTTP
+	s.opts.SetClient(ctx, rrepo)
 	return rrepo, nil
 }
 
