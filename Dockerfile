@@ -40,8 +40,10 @@ COPY ui/ui.go ./ui/ui.go
 
 COPY --from=react-builder /app/build ./ui/build
 
-RUN go build -trimpath -ldflags="-s -w" -o lkard ./cmd/lkard
-RUN go build -trimpath -ldflags="-s -w" -o lkar ./cmd/lkar
+ARG VERSION=dev
+
+RUN go build -trimpath -ldflags="-s -w -X go.linka.cloud/artifact-registry.Version=${VERSION} -X go.linka.cloud/artifact-registry.BuildDate=$(date -Iseconds)" -o lkard ./cmd/lkard
+RUN go build -trimpath -ldflags="-s -w -X go.linka.cloud/artifact-registry.Version=${VERSION} -X go.linka.cloud/artifact-registry.BuildDate=$(date -Iseconds)" -o lkar ./cmd/lkar
 
 FROM alpine:latest
 

@@ -26,8 +26,7 @@ var (
 	cmdVersion = &cobra.Command{
 		Use: "version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(artifact_registry.Version)
-			fmt.Println(artifact_registry.BuildDate)
+			fmt.Printf("%s (%s)\n", artifact_registry.Version, artifact_registry.BuildDate)
 		},
 	}
 )

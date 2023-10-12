@@ -17,10 +17,10 @@ build-ui:
 
 install: build-ui
 	@go generate ./...
-	@go install -trimpath -ldflags "-s -w -X '$(MODULE).Version=$(VERSION)' -X '$(MODULE).BuildDate=$(shell date)'" ./cmd/artifact-registry
-	@go install -trimpath -ldflags "-s -w -X '$(MODULE).Version=$(VERSION)' -X '$(MODULE).BuildDate=$(shell date)'" ./cmd/lkar
+	@go install -trimpath -ldflags "-s -w -X '$(MODULE).Version=$(VERSION)' -X '$(MODULE).BuildDate=$(shell date -Iseconds)'" ./cmd/artifact-registry
+	@go install -trimpath -ldflags "-s -w -X '$(MODULE).Version=$(VERSION)' -X '$(MODULE).BuildDate=$(shell date -Iseconds)'" ./cmd/lkar
 
-DOCKER_BUILDX_ARGS := build --pull --load
+DOCKER_BUILDX_ARGS := build --pull --load --build-arg VERSION=$(VERSION)
 
 docker: docker-build docker-push
 
