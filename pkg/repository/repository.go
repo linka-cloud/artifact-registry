@@ -357,14 +357,13 @@ func Init(ctx context.Context, r *mux.Router, domain string) error {
 	r.Path("/_auth/logout").Methods(http.MethodGet, http.MethodPost).HandlerFunc(h.Logout)
 	// TODO(adphi): we should find a way to protect this to make it only available to the browser
 	r.Path("/_auth/credentials").Methods(http.MethodGet).HandlerFunc(h.Credentials)
+
+	r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListRepositories)
+	r.Path("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListRepositories)
+	r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
 	r.Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
-	r.PathPrefix("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListRepositories)
-	subs := []*mux.Router{r.PathPrefix(fmt.Sprintf("/_packages/{type:%s}/", tregx)).Subrouter()}
-	if domain != "" {
-		subs = append(subs, r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).PathPrefix("/_packages").Subrouter())
-	}
-	for _, v := range subs {
-		v.Path("/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.Packages)
-	}
+
+	r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_packages/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.Packages)
+	r.Path(fmt.Sprintf("/_packages/{type:%s}/{repo:.+}", tregx)).Methods(http.MethodGet).HandlerFunc(h.Packages)
 	return nil
 }

@@ -15,6 +15,8 @@
 import { RepositoryType } from '../api/repository'
 import { Credentials } from '../api/schemas/login'
 
+const typeUrl = (type: RepositoryType) => window.location.host.split('.')[0] === type.toString() ? window.location.host : `${window.location.host}/${type}`
+
 export const lkar = {
   login: (repo?: string, creds?: Credentials) => `lkar login -u ${creds?.user ?? '$USER'} -p ${creds?.password ?? '$PASSWORD'} ${window.location.host}${repo ? '/' + repo : ''}`,
   setup: (type: RepositoryType, repo: string, sub?: string, _?: Credentials) => `lkar ${type} setup ${window.location.protocol === 'http:' ? '--plain-http ' : ''}${window.location.host}/${repo} ${(sub ? `${sub.split('/')[0]} ${sub.split('/')[1]}` : '')}`,
@@ -23,7 +25,7 @@ export const lkar = {
 }
 
 export const curl = {
-  setup: (type: RepositoryType, repo: string, sub?: string, creds?: Credentials) => `curl --user "${creds?.user ?? '$USER'}:${creds?.password ?? '$PASSWORD'}" ${window.location.protocol}//${window.location.host}/${type}/${repo + (sub ? '/' + sub : '')}/setup | sudo sh`,
-  push: (type: RepositoryType, repo: string, sub?: string, creds?: Credentials) => `curl --user "${creds?.user ?? '$USER'}:${creds?.password ?? '$PASSWORD'}" ${window.location.protocol}//${window.location.host}/${type}/${repo + (sub ? '/' + sub : '')}/push --upload-file # my-package.${type}`,
-  delete: (type: RepositoryType, repo: string, filePath: string, creds?: Credentials) => `curl --user "${creds?.user ?? '$USER'}:${creds?.password ?? '$PASSWORD'}" -X DELETE ${window.location.protocol}//${window.location.host}/${type}/${repo}/${filePath}`,
+  setup: (type: RepositoryType, repo: string, sub?: string, creds?: Credentials) => `curl --user "${creds?.user ?? '$USER'}:${creds?.password ?? '$PASSWORD'}" ${window.location.protocol}//${typeUrl(type)}/${repo + (sub ? '/' + sub : '')}/setup | sudo sh`,
+  push: (type: RepositoryType, repo: string, sub?: string, creds?: Credentials) => `curl --user "${creds?.user ?? '$USER'}:${creds?.password ?? '$PASSWORD'}" ${window.location.protocol}//${typeUrl(type)}/${repo + (sub ? '/' + sub : '')}/push --upload-file # my-package.${type}`,
+  delete: (type: RepositoryType, repo: string, filePath: string, creds?: Credentials) => `curl --user "${creds?.user ?? '$USER'}:${creds?.password ?? '$PASSWORD'}" -X DELETE ${window.location.protocol}//${typeUrl(type)}/${repo}/${filePath}`,
 }

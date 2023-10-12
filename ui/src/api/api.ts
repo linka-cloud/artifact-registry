@@ -63,7 +63,8 @@ export const api: API = {
       .catch(e => [[], e] as [Repository[], Error])
   },
   packages: async (repo: string, type: RepositoryType) => {
-    const res = await fetch(`/_packages/${type}/${repo}`)
+    const url = window.location.host.split('.')[0] === type.toString() ? `/_packages/${repo}` : `/_packages/${type}/${repo}`
+    const res = await fetch(url)
     if (!res.ok) {
       return [[], new Error(res.statusText)]
     }
