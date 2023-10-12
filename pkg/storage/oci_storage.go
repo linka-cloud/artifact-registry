@@ -38,6 +38,7 @@ import (
 	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
 	"go.linka.cloud/artifact-registry/pkg/crypt/aes"
 	"go.linka.cloud/artifact-registry/pkg/logger"
+	"go.linka.cloud/artifact-registry/pkg/slices"
 )
 
 var cache = cache2.New()
@@ -95,9 +96,12 @@ func (s *storage) Stat(ctx context.Context, file string) (ArtifactInfo, error) {
 	return &info{path: file, size: desc.Size, digest: desc.Digest, meta: desc.Data}, nil
 }
 
-func (s *storage) Open(ctx context.Context, file string) (io.ReadCloser, error) {
-	logger.C(ctx).Infof("downloading %s", file)
-	desc, err := s.find(ctx, file)
+func (s *storage) Open(ctx context.Context, path string) (io.ReadCloser, error) {
+	if k, _ := s.repo.KeyNames(); path == k || path == "" {
+		return nil, fmt.Errorf("%s: %w", path, os.ErrNotExist)
+	}
+	logger.C(ctx).Infof("downloading %s", path)
+	desc, err := s.find(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +165,7 @@ func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 	}
 	if s.opts.artifactTags {
 		repo := s.artifactName(pkg)
-		ref := strings.NewReplacer("~", "-", "+", "-").Replace(repo + ":" + pkg.Version())
+		ref := strings.NewReplacer("~", "-", "+", "-").Replace(repo + ":" + defaults(pkg.Version(), "latest"))
 		if err := store.Tag(ctx, img, img.Digest.String()); err != nil {
 			return err
 		}
@@ -203,23 +207,25 @@ func (s *storage) Delete(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	repo := s.artifactName(pkg)
-	ref := strings.NewReplacer("~", "-", "+", "-").Replace(repo + ":" + pkg.Version())
-	rrepo, err := s.newRepository(ctx, repo)
-	if err != nil {
-		return err
-	}
-	del := true
-	pdesc, err := rrepo.Resolve(ctx, ref)
-	if err != nil {
-		if !errors.Is(err, errdef.ErrNotFound) {
+	if s.opts.artifactTags {
+		repo := s.artifactName(pkg)
+		ref := strings.NewReplacer("~", "-", "+", "-").Replace(repo + ":" + defaults(pkg.Version(), "latest"))
+		rrepo, err := s.newRepository(ctx, repo)
+		if err != nil {
 			return err
 		}
-		del = false
-	}
-	if del {
-		if err := rrepo.Delete(ctx, pdesc); err != nil {
-			return err
+		del := true
+		pdesc, err := rrepo.Resolve(ctx, ref)
+		if err != nil {
+			if !errors.Is(err, errdef.ErrNotFound) {
+				return err
+			}
+			del = false
+		}
+		if del {
+			if err := rrepo.Delete(ctx, pdesc); err != nil {
+				return err
+			}
 		}
 	}
 	m, err := s.manifest(ctx)
@@ -488,7 +494,7 @@ func (s *storage) find(ctx context.Context, file string) (ocispec.Descriptor, er
 }
 
 func (s *storage) artifactName(a Artifact) string {
-	return s.name + "/" + strings.Join([]string{a.Name(), a.Arch(), s.repo.Name()}, "-")
+	return s.name + "/" + strings.Join(slices.Filter([]string{a.Name(), a.Arch(), s.repo.Name()}, func(s string) bool { return s != "" }), "-")
 }
 
 func (s *storage) ArtefactTypeRegistry() string {
