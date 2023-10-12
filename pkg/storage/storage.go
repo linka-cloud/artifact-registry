@@ -16,6 +16,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,6 +26,8 @@ import (
 	"go.linka.cloud/artifact-registry/pkg/codec"
 	"go.linka.cloud/artifact-registry/pkg/slices"
 )
+
+var ErrInvalidArtifactType = errors.New("invalid image's artifact type")
 
 type Codec = codec.Codec[Artifact]
 

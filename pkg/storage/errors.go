@@ -23,8 +23,6 @@ import (
 	"oras.land/oras-go/v2/registry/remote/errcode"
 )
 
-var ErrInvalidArtifactType = errors.New("invalid image's artifact type")
-
 func IsErrorCode(err error, code string) bool {
 	var ec errcode.Error
 	return errors.As(err, &ec) && ec.Code == code

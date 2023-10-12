@@ -165,6 +165,15 @@ func run(ctx context.Context, opts ...storage.Option) error {
 	router := mux.NewRouter()
 	k := sha256.Sum256([]byte(aesKey))
 	ctx = storage.WithOptions(ctx, append(opts, storage.WithKey(k[:]))...)
+	uih, err := react.NewHandler(ui.UI, "build")
+	if err != nil {
+		return err
+	}
+	router.PathPrefix("/ui").Handler(http.StripPrefix("/ui", uih))
+	router.Path("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/ui", http.StatusFound)
+	})
+
 	router.Path("/_/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -174,12 +183,6 @@ func run(ctx context.Context, opts ...storage.Option) error {
 	if err := packages.Init(ctx, router, domain); err != nil {
 		return err
 	}
-
-	uih, err := react.NewHandler(ui.UI, "build")
-	if err != nil {
-		return err
-	}
-	router.PathPrefix("/").Handler(uih)
 
 	if err := router.Walk(func(r *mux.Route, _ *mux.Router, _ []*mux.Route) error { return r.GetError() }); err != nil {
 		return err

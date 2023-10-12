@@ -18,7 +18,7 @@ const App = () => (
     <APIProvider>
       <MultiLangCodeProvider storageKey="lkar" value="lkar">
         <SnackbarProvider>
-          <BrowserRouter>
+          <BrowserRouter basename="/ui">
             <Layout>
               <ErrorBoundary>
                 <Suspense fallback={<Loading />}>

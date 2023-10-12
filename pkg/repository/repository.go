@@ -349,6 +349,7 @@ func (h *handler) cookie2Basic(next http.Handler) http.Handler {
 }
 
 func Init(ctx context.Context, r *mux.Router, domain string) error {
+	tregx := strings.Join(packages.Providers(), "|")
 	h := &handler{store: sessions.NewCookieStore(storage.Options(ctx).Key())}
 	r.Use(h.cookie2Basic)
 	r.Path("/_auth/login").Methods(http.MethodGet, http.MethodPost).HandlerFunc(h.Login)
@@ -358,9 +359,9 @@ func Init(ctx context.Context, r *mux.Router, domain string) error {
 	r.Path("/_auth/credentials").Methods(http.MethodGet).HandlerFunc(h.Credentials)
 	r.Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
 	r.PathPrefix("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListRepositories)
-	subs := []*mux.Router{r.PathPrefix(fmt.Sprintf("/_packages/{type:%s}/", strings.Join(packages.Providers(), "|"))).Subrouter()}
+	subs := []*mux.Router{r.PathPrefix(fmt.Sprintf("/_packages/{type:%s}/", tregx)).Subrouter()}
 	if domain != "" {
-		subs = append(subs, r.Host("{type}."+domain).PathPrefix("/_packages").Subrouter())
+		subs = append(subs, r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).PathPrefix("/_packages").Subrouter())
 	}
 	for _, v := range subs {
 		v.Path("/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.Packages)
