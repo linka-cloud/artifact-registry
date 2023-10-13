@@ -31,7 +31,20 @@ import (
 //go:embed setup.sh
 var script string
 
-var scriptTemplate = template.Must(template.New("setup.sh").Parse(script))
+var (
+	scriptTemplate = template.Must(template.New("setup.sh").Parse(script))
+	repoTemplate   = template.Must(template.New("repo").Parse(`[{{.Name}}]
+name={{.Name}}
+baseurl={{.URL}}
+enabled=1
+gpgcheck=1
+gpgkey={{.URL}}/{{.Key}}
+{{- if .User }}
+username={{.User}}
+password={{.Password}}
+{{- end }}
+`))
+)
 
 type SetupArgs struct {
 	User     string
@@ -112,4 +125,15 @@ func Setup(ctx context.Context, args SetupArgs, force bool) error {
 		}
 	}
 	return nil
+}
+
+func repoDefinition(w io.Writer, name, url, key, user, password string) error {
+	data := map[string]string{
+		"Name":     name,
+		"URL":      url,
+		"Key":      key,
+		"User":     user,
+		"Password": password,
+	}
+	return repoTemplate.ExecuteTemplate(w, "repo", data)
 }

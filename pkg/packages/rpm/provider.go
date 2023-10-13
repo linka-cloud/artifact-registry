@@ -28,14 +28,6 @@ import (
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
 
-const definition = `[%[1]s]
-name=%[1]s
-baseurl=%[2]s
-enabled=1
-gpgcheck=1
-gpgkey=%[2]s/%[3]s
-`
-
 var _ packages.Provider = (*provider)(nil)
 
 func init() {
@@ -54,19 +46,19 @@ func (p *provider) Repository() storage.Repository {
 
 func (p *provider) config(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	name := mux.Vars(r)["repo"]
+	name := strings.NewReplacer("/", "-").Replace(mux.Vars(r)["repo"])
 	if _, err := storage.FromContext(ctx).Stat(ctx, RepositoryPublicKey); err != nil {
 		storage.Error(w, err)
 		return
 	}
 	host := strings.TrimSuffix(r.Host, "/")
-	if u, p, ok := r.BasicAuth(); ok {
-		host = fmt.Sprintf("%s:%s@%s", u, p, host)
-	}
+	user, pass, _ := r.BasicAuth()
 	url := fmt.Sprintf("%s://%s/%s", packages.Scheme(r), host, strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".repo"), "/"))
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Write([]byte(fmt.Sprintf(definition, strings.NewReplacer("/", "-").Replace(name), url, RepositoryPublicKey)))
+	if err := repoDefinition(w, name, url, RepositoryPublicKey, user, pass); err != nil {
+		logger.C(r.Context()).WithError(err).Error("failed to execute template")
+	}
 }
 
 func (p *provider) setup(w http.ResponseWriter, r *http.Request) {
