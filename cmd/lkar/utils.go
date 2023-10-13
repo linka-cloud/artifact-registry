@@ -67,6 +67,7 @@ func client() *http.Client {
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: insecure,
+				ClientCAs:          caPool,
 			},
 		},
 	}

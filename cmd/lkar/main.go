@@ -15,6 +15,8 @@
 package main
 
 import (
+	"crypto/x509"
+	"fmt"
 	"os"
 	"strings"
 
@@ -29,6 +31,7 @@ var (
 	user       string
 	pass       string
 
+	caFile   string
 	insecure bool
 
 	plainHTTP bool
@@ -38,6 +41,7 @@ var (
 	format printer.Format
 
 	credsStore *credentials.DynamicStore
+	caPool     *x509.CertPool
 
 	rootCmd = &cobra.Command{
 		Use:               "lkar",
@@ -47,6 +51,16 @@ var (
 )
 
 func setup(cmd *cobra.Command, args []string) error {
+	if caFile != "" {
+		caPool = x509.NewCertPool()
+		b, err := os.ReadFile(caFile)
+		if err != nil {
+			return fmt.Errorf("--ca-file: %w", err)
+		}
+		if !caPool.AppendCertsFromPEM(b) {
+			return fmt.Errorf("--ca-file: no valid certificates found")
+		}
+	}
 	if len(args) == 0 {
 		return nil
 	}
@@ -103,6 +117,7 @@ func completeOutput(_ *cobra.Command, _ []string, toComplete string) ([]string, 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&user, "user", "u", "", "Username")
 	rootCmd.PersistentFlags().StringVarP(&pass, "pass", "p", "", "Password")
+	rootCmd.PersistentFlags().StringVarP(&caFile, "ca-file", "", "", "CA certificate file")
 	rootCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "k", false, "Do not verify tls certificates")
 	rootCmd.PersistentFlags().BoolVarP(&plainHTTP, "plain-http", "H", false, "Use http instead of https")
 }
