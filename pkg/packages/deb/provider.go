@@ -45,27 +45,29 @@ func (p *provider) Repository() storage.Repository {
 	return &repo{}
 }
 
-func (p *provider) setup(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	s := storage.FromContext(ctx)
-	if _, err := s.Stat(ctx, RepositoryPublicKey); err != nil {
-		storage.Error(w, err)
-		return
-	}
-	repo, dist, component := mux.Vars(r)["repo"], mux.Vars(r)["distribution"], mux.Vars(r)["component"]
-	user, pass, _ := r.BasicAuth()
-	args := SetupArgs{
-		Name:      strings.Replace(repo, "/", "-", -1),
-		User:      user,
-		Password:  pass,
-		Scheme:    packages.Scheme(r),
-		Host:      r.Host,
-		Path:      strings.TrimSuffix(r.URL.Path, fmt.Sprintf("/%s/%s/setup", dist, component)),
-		Dist:      dist,
-		Component: component,
-	}
-	if err := scriptTemplate.Execute(w, args); err != nil {
-		logger.C(r.Context()).WithError(err).Error("failed to execute template")
+func (p *provider) setup(repo string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		s := storage.FromContext(ctx)
+		if _, err := s.Stat(ctx, RepositoryPublicKey); err != nil {
+			storage.Error(w, err)
+			return
+		}
+		dist, component := mux.Vars(r)["distribution"], mux.Vars(r)["component"]
+		user, pass, _ := r.BasicAuth()
+		args := SetupArgs{
+			Name:      strings.Replace(repo, "/", "-", -1),
+			User:      user,
+			Password:  pass,
+			Scheme:    packages.Scheme(r),
+			Host:      r.Host,
+			Path:      strings.TrimSuffix(r.URL.Path, fmt.Sprintf("/%s/%s/setup", dist, component)),
+			Dist:      dist,
+			Component: component,
+		}
+		if err := scriptTemplate.Execute(w, args); err != nil {
+			logger.C(r.Context()).WithError(err).Error("failed to execute template")
+		}
 	}
 }
 
@@ -73,19 +75,19 @@ func (p *provider) Routes() []*packages.Route {
 	return []*packages.Route{
 		{
 			Method:  http.MethodGet,
-			Path:    "/{repo:.+}/{distribution}/{component}/setup",
+			Path:    "/{distribution}/{component}/setup",
 			Handler: p.setup,
 		},
 		{
 			Method: http.MethodGet,
-			Path:   "/{repo:.+}/" + RepositoryPublicKey,
+			Path:   "/" + RepositoryPublicKey,
 			Handler: packages.Pull(func(r *http.Request) string {
 				return RepositoryPublicKey
 			}),
 		},
 		{
 			Method: http.MethodGet,
-			Path:   "/{repo:.+}/dists/{distribution}/{filename}",
+			Path:   "/dists/{distribution}/{filename}",
 			Handler: packages.Pull(func(r *http.Request) string {
 				dist, filename := mux.Vars(r)["distribution"], mux.Vars(r)["filename"]
 				return filepath.Join("dists", dist, filename)
@@ -93,7 +95,7 @@ func (p *provider) Routes() []*packages.Route {
 		},
 		{
 			Method: http.MethodGet,
-			Path:   "/{repo:.+}/dists/{distribution}/{component}/{architecture}/{filename}",
+			Path:   "/dists/{distribution}/{component}/{architecture}/{filename}",
 			Handler: packages.Pull(func(r *http.Request) string {
 				dist, component, architecture, filename := mux.Vars(r)["distribution"], mux.Vars(r)["component"], mux.Vars(r)["architecture"], mux.Vars(r)["filename"]
 				return filepath.Join("dists", dist, component, architecture, filename)
@@ -101,7 +103,7 @@ func (p *provider) Routes() []*packages.Route {
 		},
 		{
 			Method: http.MethodPut,
-			Path:   "/{repo:.+}/pool/{distribution}/{component}/push",
+			Path:   "/pool/{distribution}/{component}/push",
 			Handler: packages.Push(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
 				distribution, component := mux.Vars(r)["distribution"], mux.Vars(r)["component"]
 				return NewPackage(reader, distribution, component, size)
@@ -109,7 +111,7 @@ func (p *provider) Routes() []*packages.Route {
 		},
 		{
 			Method: http.MethodGet,
-			Path:   "/{repo:.+}/pool/{distribution}/{component}/{name}_{version}_{architecture}.deb",
+			Path:   "/pool/{distribution}/{component}/{name}_{version}_{architecture}.deb",
 			Handler: packages.Pull(func(r *http.Request) string {
 				dist, component, name, version, architecture := mux.Vars(r)["distribution"], mux.Vars(r)["component"], mux.Vars(r)["name"], mux.Vars(r)["version"], mux.Vars(r)["architecture"]
 				return filepath.Join("pool", dist, component, name+"_"+version+"_"+architecture+".deb")
@@ -117,7 +119,7 @@ func (p *provider) Routes() []*packages.Route {
 		},
 		{
 			Method: http.MethodDelete,
-			Path:   "/{repo:.+}/pool/{distribution}/{component}/{name}_{version}_{architecture}.deb",
+			Path:   "/pool/{distribution}/{component}/{name}_{version}_{architecture}.deb",
 			Handler: packages.Delete(func(r *http.Request) string {
 				dist, component, name, version, architecture := mux.Vars(r)["distribution"], mux.Vars(r)["component"], mux.Vars(r)["name"], mux.Vars(r)["version"], mux.Vars(r)["architecture"]
 				return filepath.Join("pool", dist, component, name+"_"+version+"_"+architecture+".deb")

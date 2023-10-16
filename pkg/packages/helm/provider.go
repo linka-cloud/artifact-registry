@@ -52,50 +52,51 @@ func (p *provider) Repository() storage.Repository {
 	return &repo{}
 }
 
-func (p *provider) setup(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	if _, err := storage.FromContext(ctx).Stat(ctx, RepositoryPublicKey); err != nil {
-		storage.Error(w, err)
-		return
-	}
-	repo := mux.Vars(r)["repo"]
-	user, pass, _ := r.BasicAuth()
-	args := SetupArgs{
-		Name:     strings.Replace(repo, "/", "-", -1),
-		User:     user,
-		Password: pass,
-		Scheme:   packages.Scheme(r),
-		Host:     r.Host,
-		Path:     strings.TrimSuffix(r.URL.Path, "/setup"),
-	}
-	if err := scriptTemplate.Execute(w, args); err != nil {
-		logger.C(r.Context()).WithError(err).Error("failed to execute template")
+func (p *provider) setup(repo string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		if _, err := storage.FromContext(ctx).Stat(ctx, RepositoryPublicKey); err != nil {
+			storage.Error(w, err)
+			return
+		}
+		user, pass, _ := r.BasicAuth()
+		args := SetupArgs{
+			Name:     strings.Replace(repo, "/", "-", -1),
+			User:     user,
+			Password: pass,
+			Scheme:   packages.Scheme(r),
+			Host:     r.Host,
+			Path:     strings.TrimSuffix(r.URL.Path, "/setup"),
+		}
+		if err := scriptTemplate.Execute(w, args); err != nil {
+			logger.C(r.Context()).WithError(err).Error("failed to execute template")
+		}
 	}
 }
 
 func (p *provider) Routes() []*packages.Route {
 	return []*packages.Route{
 		{
-			Path:    "/{repo:.+}/setup",
+			Path:    "/setup",
 			Method:  http.MethodGet,
 			Handler: p.setup,
 		},
 		{
-			Path:   "/{repo:.+}/{filename}",
+			Path:   "/{filename}",
 			Method: http.MethodGet,
 			Handler: packages.Pull(func(r *http.Request) string {
 				return mux.Vars(r)["filename"]
 			}),
 		},
 		{
-			Path:   "/{repo:.+}/push",
+			Path:   "/push",
 			Method: http.MethodPut,
 			Handler: packages.Push(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
 				return NewPackage(reader)
 			}),
 		},
 		{
-			Path:   "/{repo:.+}/{filename}",
+			Path:   "/{filename}",
 			Method: http.MethodDelete,
 			Handler: packages.Delete(func(r *http.Request) string {
 				return mux.Vars(r)["filename"]

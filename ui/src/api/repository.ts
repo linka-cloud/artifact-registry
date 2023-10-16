@@ -23,7 +23,7 @@ export interface Stats {
 }
 
 export interface Repository {
-  name: string
+  name?: string
   type: RepositoryType
   size: number
   lastUpdated: Date

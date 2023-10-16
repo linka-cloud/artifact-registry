@@ -12,20 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { ExpandMoreOutlined } from '@mui/icons-material'
-import { Box, Card, CardActions, CardContent, CardHeader, IconButton, MenuItem, Stack, Typography } from '@mui/material'
+import { Box, MenuItem, Stack, Typography } from '@mui/material'
 import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Package, RepositoryType, subRepositories, subRepositoryPackages } from '../../api/repository'
 import { useAPI } from '../../api/useAPI'
-import { curl, lkar } from '../../cli/cli'
 import { useAsync } from '../../hooks'
-import { packageTypeIcon } from '../../icons/packageTypeIcon'
 import { useSnackbar } from '../../snackbar'
 
 import { defaultPadding, defaultSpacing } from '../../theme/theme'
 import { Loading } from '../Loading'
-import { MultiLangCode, MultiLangCodeItem } from '../MultiLangCode'
 import { SimpleSelect } from '../SimpleSelect'
 import { PackageCard } from './PackageCard'
 import { RepoCard } from './RepoCard'
@@ -33,10 +29,10 @@ import { RepoCard } from './RepoCard'
 const PackagesPage = () => {
   const api = useAPI()
   const [packages, setPackages] = useState<Package[]>([])
-  const {errorSnackbar} = useSnackbar()
+  const { errorSnackbar } = useSnackbar()
   const [loading, setLoading] = useState(false)
   const { repo: _repo } = useParams<{ repo: string }>()
-  const [repo, type] = decodeURIComponent(_repo!!).split(':') as [string, RepositoryType]
+  const [repo, type] = (_repo?.indexOf(":") !== -1 ? decodeURIComponent(_repo!!).split(':') : [undefined, _repo]) as [string|undefined, RepositoryType]
   const subs = subRepositories(packages, type)
   const [sub, setSub] = useState<string>(subs.length > 0 ? subs[0] : '')
   useEffect(() => {
@@ -45,7 +41,7 @@ const PackagesPage = () => {
   console.log(sub, packages, subs)
   useAsync(async () => {
     setLoading(true)
-    const [packages, error] = await api.packages(repo!!, type!!)
+    const [packages, error] = await api.packages(type!!, repo!!)
     console.log(packages)
     setPackages(packages)
     if (error) {

@@ -39,7 +39,7 @@ import { ExternalLink } from '../ExternalLink'
 import { MultiLangCode, MultiLangCodeItem } from '../MultiLangCode'
 
 export interface PackageCardProps {
-  repo: string
+  repo?: string
   package: Package
 }
 
@@ -96,14 +96,14 @@ export const PackageCard = ({
                          title='Run this command on your machine to delete the package from the repository:'>
             <MultiLangCodeItem
               label='lkar'
-              code={lkar.delete(type, repo, filePath)}
-              hiddenCode={lkar.delete(type, repo, filePath, credentials)}
+              code={lkar.delete(type, filePath, repo)}
+              hiddenCode={lkar.delete(type, filePath, repo, credentials)}
               language='bash'
             />
             <MultiLangCodeItem
               label='curl'
-              code={curl.delete(type, repo, filePath)}
-              hiddenCode={curl.delete(type, repo, filePath, credentials)}
+              code={curl.delete(type, filePath, repo)}
+              hiddenCode={curl.delete(type, filePath, repo, credentials)}
               language='bash'
             />
           </MultiLangCode>

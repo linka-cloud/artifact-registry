@@ -22,17 +22,9 @@ import (
 
 func newPkgCmd(typ string) *cobra.Command {
 	pkgCmd := &cobra.Command{
-		Use:   typ,
-		Short: fmt.Sprintf("Root command for %s management", typ),
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := setup(cmd, args); err != nil {
-				return err
-			}
-			if repository == "" {
-				return fmt.Errorf("repository part is required")
-			}
-			return nil
-		},
+		Use:               typ,
+		Short:             fmt.Sprintf("Root command for %s management", typ),
+		PersistentPreRunE: setup,
 	}
 	pkgCmd.AddCommand(
 		newPkgListCmd(typ),

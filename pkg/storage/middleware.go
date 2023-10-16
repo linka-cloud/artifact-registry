@@ -32,8 +32,12 @@ func Middleware(ar Repository) MiddlewareFunc {
 				ctx := auth.Context(r.Context(), r)
 				name := mux.Vars(r)[repoVar]
 				if name == "" {
-					http.Error(w, "missing repository name", http.StatusBadRequest)
-					return
+					n := Options(ctx).repo
+					if n == "" {
+						http.Error(w, "missing repository name", http.StatusBadRequest)
+						return
+					}
+					name = n
 				}
 				ctx = logger.Set(ctx, logger.C(ctx).WithField("repo", name).WithField("type", ar.Name()))
 				s, err := NewStorage(ctx, name, ar)

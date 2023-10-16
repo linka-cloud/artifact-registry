@@ -37,6 +37,7 @@ func Options(ctx context.Context) options {
 type options struct {
 	host         string
 	key          []byte
+	repo         string
 	plainHTTP    bool
 	insecure     bool
 	artifactTags bool
@@ -45,6 +46,10 @@ type options struct {
 
 func (o options) Host() string {
 	return o.host
+}
+
+func (o options) Repo() string {
+	return o.repo
 }
 
 func (o options) Key() []byte {
@@ -62,6 +67,12 @@ func WithHost(host string) Option {
 func WithKey(key []byte) Option {
 	return func(o *options) {
 		o.key = key
+	}
+}
+
+func WithRepo(repo string) Option {
+	return func(o *options) {
+		o.repo = repo
 	}
 }
 

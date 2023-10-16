@@ -28,11 +28,11 @@ export interface RepositoryCardProps {
 }
 
 export const RepositoryCard = ({ repository: { name, type, size, lastUpdated, metadata, packages } }: RepositoryCardProps) => (
-  <Card key={`${name}:${type}`} component={Link}
-        href={'/' + encodeURIComponent(`${name.split('/').slice(1).join('/')}:${type}`)}>
+  <Card key={name ? `${name}:${type}` : type} component={Link}
+        href={'/' + (name ? encodeURIComponent(`${name.split('/').slice(1).join('/')}:${type}`) : type)}>
     <CardHeader
       avatar={packageTypeIcon(type)}
-      title={name} subheader={humanSize(size)}
+      title={name || type} subheader={humanSize(size)}
       action={(
         <Stack direction='row' padding={defaultPadding} alignItems='center'>
           <UpdateOutlined />

@@ -55,6 +55,12 @@ type storage struct {
 
 func NewStorage(ctx context.Context, name string, repo Repository) (Storage, error) {
 	opts := Options(ctx)
+	if name == "" {
+		if opts.repo == "" {
+			return nil, errors.New("repository name is required")
+		}
+		name = opts.repo
+	}
 	name = opts.host + "/" + strings.TrimSuffix(name, "/")
 	ref := name + ":" + repo.Name()
 	tmp, err := os.MkdirTemp(os.TempDir(), "lk-artifact-registry-"+repo.Name())

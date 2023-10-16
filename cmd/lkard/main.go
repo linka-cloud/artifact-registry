@@ -73,9 +73,14 @@ var (
 	clientCA string
 
 	cmd = &cobra.Command{
-		Use:          "artifact-registry",
+		Use:          "artifact-registry (repository)",
+		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		Run: func(cmd *cobra.Command, args []string) {
+			var repo string
+			if len(args) > 0 {
+				repo = args[0]
+			}
 			// TODO(adphi): validate host
 			opts := []storage.Option{storage.WithHost(backend)}
 			if noHTTPS {
@@ -86,6 +91,9 @@ var (
 			}
 			if tagPerArtifact {
 				opts = append(opts, storage.WithArtifactTags())
+			}
+			if repo != "" {
+				opts = append(opts, storage.WithRepo(repo))
 			}
 			if clientCA != "" {
 				p := x509.NewCertPool()
@@ -98,7 +106,7 @@ var (
 				}
 				opts = append(opts, storage.WithClientCA(p))
 			}
-			if err := run(cmd.Context(), opts...); err != nil {
+			if err := run(cmd.Context(), repo, opts...); err != nil {
 				logger.C(cmd.Context()).Fatal(err)
 			}
 		},
@@ -155,12 +163,12 @@ func (w *wrapWriter) Write(b []byte) (int, error) {
 	return n, nil
 }
 
-func run(ctx context.Context, opts ...storage.Option) error {
+func run(ctx context.Context, repo string, opts ...storage.Option) error {
 	if aesKey == "" {
 		return fmt.Errorf("environment variable $%s must be set", EnvKey)
 	}
-	logger.C(ctx).Infof("intializing artifact registry using backend %s", backend)
-	router := mux.NewRouter()
+	logger.C(ctx).Infof("initializing artifact registry using backend %s", backend)
+	router := mux.NewRouter().StrictSlash(true)
 	k := sha256.Sum256([]byte(aesKey))
 	ctx = storage.WithOptions(ctx, append(opts, storage.WithKey(k[:]))...)
 	uih, err := react.NewHandler(ui.UI, "build")
@@ -175,10 +183,10 @@ func run(ctx context.Context, opts ...storage.Option) error {
 	router.Path("/_/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	if err := repository.Init(ctx, router, domain); err != nil {
+	if err := repository.Init(ctx, router, domain, repo); err != nil {
 		return err
 	}
-	if err := packages.Init(ctx, router, domain); err != nil {
+	if err := packages.Init(ctx, router, domain, repo); err != nil {
 		return err
 	}
 

@@ -89,6 +89,7 @@ func setup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if repository == "" {
+		user, pass = creds.Username, creds.Password
 		return nil
 	}
 	if creds.Username == "" && creds.Password == "" {

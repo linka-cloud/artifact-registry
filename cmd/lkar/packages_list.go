@@ -42,9 +42,12 @@ func newPkgListCmd(typ string) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			u := fmt.Sprintf("%s/_packages/%s/%s", url(), typ, repository)
-			if urlHasType() {
-				u = fmt.Sprintf("%s/_packages/%s", url(), repository)
+			u := fmt.Sprintf("%s/_packages", url())
+			if !urlHasType() {
+				u = fmt.Sprintf("%s/%s", u, typ)
+			}
+			if repository != "" {
+				u = fmt.Sprintf("%s/%s", u, repository)
 			}
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 			if err != nil {

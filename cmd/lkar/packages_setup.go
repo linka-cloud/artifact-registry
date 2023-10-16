@@ -34,11 +34,11 @@ func newPkgSetupCmd(typ string) *cobra.Command {
 		force bool
 		use   string
 		args  int
-		setup func(ctx context.Context, scheme string, args []string) error
+		setup func(ctx context.Context, scheme, name string, args []string) error
 	)
 	var prefix string
 	switch strings.Split(registry, ".")[0] {
-	case "apk", "deb", "rpm":
+	case "apk", "deb", "rpm", ".helm":
 		prefix = "/"
 	default:
 		prefix = "/" + typ + "/"
@@ -47,7 +47,7 @@ func newPkgSetupCmd(typ string) *cobra.Command {
 	case "apk":
 		use = fmt.Sprintf("setup [repository] [branch] [apk-repository]")
 		args = 3
-		setup = func(ctx context.Context, scheme string, args []string) error {
+		setup = func(ctx context.Context, scheme, name string, args []string) error {
 			return apk.Setup(ctx, apk.SetupArgs{
 				User:       user,
 				Password:   pass,
@@ -61,14 +61,14 @@ func newPkgSetupCmd(typ string) *cobra.Command {
 	case "deb":
 		use = fmt.Sprintf("setup [repository] [distribution] [component]")
 		args = 3
-		setup = func(ctx context.Context, scheme string, args []string) error {
+		setup = func(ctx context.Context, scheme, name string, args []string) error {
 			return deb.Setup(ctx, deb.SetupArgs{
 				User:      user,
 				Password:  pass,
 				Scheme:    scheme,
 				Host:      registry,
 				Path:      prefix + repository,
-				Name:      strings.Replace(repository, "/", "-", -1),
+				Name:      name,
 				Dist:      args[1],
 				Component: args[2],
 			}, force)
@@ -76,7 +76,7 @@ func newPkgSetupCmd(typ string) *cobra.Command {
 	case "rpm":
 		use = fmt.Sprintf("setup [repository]")
 		args = 1
-		setup = func(ctx context.Context, scheme string, args []string) error {
+		setup = func(ctx context.Context, scheme, name string, args []string) error {
 			return rpm.Setup(ctx, rpm.SetupArgs{
 				User:     user,
 				Password: pass,
@@ -88,14 +88,14 @@ func newPkgSetupCmd(typ string) *cobra.Command {
 	case "helm":
 		use = fmt.Sprintf("setup [repository]")
 		args = 1
-		setup = func(ctx context.Context, scheme string, args []string) error {
+		setup = func(ctx context.Context, scheme, name string, args []string) error {
 			return helm.Setup(ctx, helm.SetupArgs{
 				User:     user,
 				Password: pass,
 				Scheme:   scheme,
 				Host:     registry,
 				Path:     prefix + repository,
-				Name:     strings.Replace(repository, "/", "-", -1),
+				Name:     name,
 			}, force)
 		}
 	}
@@ -116,7 +116,11 @@ func newPkgSetupCmd(typ string) *cobra.Command {
 			if plainHTTP {
 				scheme = "http"
 			}
-			return setup(ctx, scheme, args)
+			name := strings.Replace(repository, "/", "-", -1)
+			if repository == "" {
+				name = strings.Replace(strings.Split(registry, ":")[0], ".", "-", -1)
+			}
+			return setup(ctx, scheme, name, args)
 		},
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "Force setup")

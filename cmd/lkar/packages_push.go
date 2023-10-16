@@ -62,7 +62,11 @@ func newPkgPushCmd(typ string) *cobra.Command {
 				return err
 			}
 			pw := newProgressReader(f, i.Size())
-			req, err := http.NewRequestWithContext(ctx, http.MethodPut, urlWithType(typ)+"/"+repository+upload(args), pw)
+			u := urlWithType(typ)
+			if repository != "" {
+				u = fmt.Sprintf("%s/%s", u, repository)
+			}
+			req, err := http.NewRequestWithContext(ctx, http.MethodPut, u+upload(args), pw)
 			if err != nil {
 				return err
 			}

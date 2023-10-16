@@ -48,7 +48,7 @@ type Stats struct {
 }
 
 type Repository struct {
-	Name        string     `json:"name"`
+	Name        string     `json:"name,omitempty"`
 	Type        string     `json:"type"`
 	Size        int64      `json:"size"`
 	LastUpdated *time.Time `json:"lastUpdated"`
@@ -64,6 +64,9 @@ func (h *handler) Login(w http.ResponseWriter, r *http.Request) {
 	ctx := auth.Context(r.Context(), r)
 	o := storage.Options(ctx)
 	name, typ := mux.Vars(r)["repo"], mux.Vars(r)["type"]
+	if n := storage.Options(ctx).Repo(); name == "" && n != "" {
+		name = n
+	}
 	reg, err := remote.NewRegistry(o.Host())
 	if err != nil {
 		storage.Error(w, err)
@@ -202,8 +205,13 @@ func listImageRepositories(ctx context.Context, reg *remote.Registry, name strin
 		if err != nil {
 			return err
 		}
+		// do not leak the repo name in single repo mode
+		var repo string
+		if opts := storage.Options(ctx); opts.Repo() == "" {
+			repo = opts.Host() + "/" + name
+		}
 		r := &Repository{
-			Name:        storage.Options(ctx).Host() + "/" + name,
+			Name:        repo,
 			Type:        typ,
 			LastUpdated: &t,
 		}
@@ -288,6 +296,9 @@ func (h *handler) ListImageRepositories(w http.ResponseWriter, r *http.Request) 
 	ctx := auth.Context(r.Context(), r)
 	o := storage.Options(ctx)
 	name, typ := mux.Vars(r)["repo"], mux.Vars(r)["type"]
+	if n := storage.Options(ctx).Repo(); name == "" && n != "" {
+		name = n
+	}
 	reg, err := remote.NewRegistry(o.Host())
 	if err != nil {
 		storage.Error(w, err)
@@ -311,6 +322,9 @@ func (h *handler) ListImageRepositories(w http.ResponseWriter, r *http.Request) 
 func (h *handler) Packages(w http.ResponseWriter, r *http.Request) {
 	ctx := auth.Context(r.Context(), r)
 	typ, repo := mux.Vars(r)["type"], mux.Vars(r)["repo"]
+	if n := storage.Options(ctx).Repo(); repo == "" && n != "" {
+		repo = n
+	}
 	p, err := packages.New(ctx, typ)
 	if err != nil {
 		storage.Error(w, err)
@@ -348,22 +362,31 @@ func (h *handler) cookie2Basic(next http.Handler) http.Handler {
 	})
 }
 
-func Init(ctx context.Context, r *mux.Router, domain string) error {
+func Init(ctx context.Context, r *mux.Router, domain, repo string) error {
 	tregx := strings.Join(packages.Providers(), "|")
 	h := &handler{store: sessions.NewCookieStore(storage.Options(ctx).Key())}
 	r.Use(h.cookie2Basic)
 	r.Path("/_auth/login").Methods(http.MethodGet, http.MethodPost).HandlerFunc(h.Login)
-	r.Path("/_auth/{repo:.+}/login").Methods(http.MethodGet, http.MethodPost).HandlerFunc(h.Login)
+	if repo == "" {
+		r.Path("/_auth/{repo:.+}/login").Methods(http.MethodGet, http.MethodPost).HandlerFunc(h.Login)
+	}
 	r.Path("/_auth/logout").Methods(http.MethodGet, http.MethodPost).HandlerFunc(h.Logout)
 	// TODO(adphi): we should find a way to protect this to make it only available to the browser
 	r.Path("/_auth/credentials").Methods(http.MethodGet).HandlerFunc(h.Credentials)
 
 	r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListRepositories)
-	r.Path("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListRepositories)
-	r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
-	r.Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
+	if repo == "" {
+		r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
+		r.Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
+		r.Path("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListRepositories)
 
-	r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_packages/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.Packages)
-	r.Path(fmt.Sprintf("/_packages/{type:%s}/{repo:.+}", tregx)).Methods(http.MethodGet).HandlerFunc(h.Packages)
+		r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_packages/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.Packages)
+		r.Path(fmt.Sprintf("/_packages/{type:%s}/{repo:.+}", tregx)).Methods(http.MethodGet).HandlerFunc(h.Packages)
+	} else {
+		r.Path("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
+
+		r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_packages").Methods(http.MethodGet).HandlerFunc(h.Packages)
+		r.Path(fmt.Sprintf("/_packages/{type:%s}", tregx)).Methods(http.MethodGet).HandlerFunc(h.Packages)
+	}
 	return nil
 }

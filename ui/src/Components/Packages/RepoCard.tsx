@@ -23,16 +23,16 @@ import { MultiLangCode, MultiLangCodeItem } from '../MultiLangCode'
 
 export interface RepoCardProps {
   type: RepositoryType
-  repo: string;
+  repo?: string;
   sub?: string;
 }
 
-export const RepoCard = ({type, repo, sub}: RepoCardProps) => {
+export const RepoCard = ({type, repo = '', sub}: RepoCardProps) => {
   const {credentials} = useAPI();
   const [expanded, setExpanded] = useState(false)
   return (
     <Card>
-      <CardHeader avatar={packageTypeIcon(type)} title={repo + (sub ? '/' + sub : '')}
+      <CardHeader avatar={packageTypeIcon(type)} title={repo ? (repo + (sub ? '/' + sub : '')) : sub ? sub : type}
                   titleTypographyProps={{ variant: 'h5' }} />
       <CardContent sx={{pt: 0, pb: 0}}>
         <Typography variant='h6'>Setup</Typography>

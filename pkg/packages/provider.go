@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -55,7 +56,7 @@ func New(ctx context.Context, name string) (Provider, error) {
 	return f(ctx)
 }
 
-func Init(ctx context.Context, r *mux.Router, domain string) error {
+func Init(ctx context.Context, r *mux.Router, domain, repo string) error {
 	for k, v := range providers {
 		p, err := v(ctx)
 		if err != nil {
@@ -69,7 +70,14 @@ func Init(ctx context.Context, r *mux.Router, domain string) error {
 		for _, v := range subs {
 			v.Use(mdlw)
 			for _, vv := range p.Routes() {
-				if err := v.Path(vv.Path).Methods(vv.Method).HandlerFunc(vv.Handler).GetError(); err != nil {
+				p := vv.Path
+				if !strings.HasPrefix(p, "/") {
+					p = "/" + p
+				}
+				if repo == "" {
+					p = "/{repo:.+}" + vv.Path
+				}
+				if err := v.Path(p).Methods(vv.Method).HandlerFunc(makeHandler("", vv.Handler)).GetError(); err != nil {
 					return fmt.Errorf("%s: %q: %w", k, vv.Path, err)
 				}
 			}

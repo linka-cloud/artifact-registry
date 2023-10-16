@@ -25,7 +25,7 @@ export interface API {
   credentials: () => Promise<[Partial<Credentials>, Error?]>
 
   repositories: (repo?: string) => Promise<[Repository[], Error?]>
-  packages: (repo: string, type: RepositoryType) => Promise<[Package[], Error?]>
+  packages: (type: RepositoryType, repo?: string) => Promise<[Package[], Error?]>
 }
 
 
@@ -59,10 +59,10 @@ export const api: API = {
     return res.json()
       .then(d => [d.map((d: any) => ({ ...d, lastUpdated: new Date(d.lastUpdated) }))
         .sort((a: Repository, b: Repository) => a.type.localeCompare(b.type))
-        .sort((a: Repository, b: Repository) => a.name.localeCompare(b.name))] as [Repository[], Error?])
+        .sort((a: Repository, b: Repository) => a.name?.localeCompare(b.name??''))] as [Repository[], Error?])
       .catch(e => [[], e] as [Repository[], Error])
   },
-  packages: async (repo: string, type: RepositoryType) => {
+  packages: async (type: RepositoryType, repo: string | undefined = '') => {
     const url = window.location.host.split('.')[0] === type.toString() ? `/_packages/${repo}` : `/_packages/${type}/${repo}`
     const res = await fetch(url)
     if (!res.ok) {
