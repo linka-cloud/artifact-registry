@@ -45,7 +45,7 @@ func newPkgCmd(typ string) *cobra.Command {
 }
 
 func init() {
-	for _, v := range []string{"apk", "deb", "rpm"} {
+	for _, v := range []string{"apk", "deb", "rpm", "helm"} {
 		rootCmd.AddCommand(newPkgCmd(v))
 	}
 }

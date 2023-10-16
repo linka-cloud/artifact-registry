@@ -25,10 +25,11 @@ import {
   Typography,
 } from '@mui/material'
 import React, { useState } from 'react'
-import { Package } from '../../api/repository'
+import { Package, RepositoryType } from '../../api/repository'
 import { useAPI } from '../../api/useAPI'
 import { curl, lkar } from '../../cli/cli'
 import { BalanceIcon } from '../../icons/BalanceIcon'
+import { KubernetesIcon } from '../../icons/KubernetesIcon'
 import { LinuxIcon } from '../../icons/LinuxIcon'
 import { packageTypeIcon } from '../../icons/packageTypeIcon'
 import { VersionIcon } from '../../icons/VersionIcon'
@@ -73,7 +74,8 @@ export const PackageCard = ({
         )} />
       <CardContent sx={{ pt: 0, pb: 0 }}>
         <Stack direction='row' marginTop={0}>
-          <Chip icon={<LinuxIcon sx={{ padding: 0.15 }} />} label='linux' />
+          <Chip icon={type === RepositoryType.HELM ? <KubernetesIcon /> : <LinuxIcon sx={{ padding: 0.15 }} />}
+                label={type === RepositoryType.HELM ? 'kubernetes' : 'linux'} />
           <Chip icon={<MemoryOutlined />} label={architecture} />
           {license && <Chip icon={<BalanceIcon sx={{ padding: 0.25 }} />} label={license} />}
         </Stack>
@@ -90,7 +92,8 @@ export const PackageCard = ({
       <Collapse in={expanded} timeout='auto' unmountOnExit>
         <CardContent sx={{ pt: 0 }}>
           <Typography variant='h6'>Delete</Typography>
-          <MultiLangCode storageKey='lang' title='Run this command on your machine to delete the package from the repository:'>
+          <MultiLangCode storageKey='lang'
+                         title='Run this command on your machine to delete the package from the repository:'>
             <MultiLangCodeItem
               label='lkar'
               code={lkar.delete(type, repo, filePath)}

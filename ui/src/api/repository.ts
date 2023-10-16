@@ -14,6 +14,7 @@
 
 import { APKPackage, fromAPK } from './apk'
 import { DEBPackage, fromDEB } from './deb'
+import { fromHelm, HelmPackage } from './helm'
 import { fromRPM, RPMPackage } from './rpm'
 
 export interface Stats {
@@ -34,6 +35,7 @@ export enum RepositoryType {
   APK = 'apk',
   DEB = 'deb',
   RPM = 'rpm',
+  HELM = 'helm',
 }
 
 export interface Package {
@@ -50,7 +52,7 @@ export interface Package {
   filePath: string
 }
 
-export const makePackage = (type: RepositoryType, d: APKPackage | DEBPackage | RPMPackage) => {
+export const makePackage = (type: RepositoryType, d: APKPackage | DEBPackage | RPMPackage | HelmPackage) => {
   switch (type) {
     case RepositoryType.APK:
       return fromAPK(d as APKPackage)
@@ -58,10 +60,12 @@ export const makePackage = (type: RepositoryType, d: APKPackage | DEBPackage | R
       return fromDEB(d as DEBPackage)
     case RepositoryType.RPM:
       return fromRPM(d as RPMPackage)
+    case RepositoryType.HELM:
+      return fromHelm(d as HelmPackage)
   }
 }
 
-export const subRepositories = (packages: Package[], type: RepositoryType) => type !== RepositoryType.RPM
+export const subRepositories = (packages: Package[], type: RepositoryType) => type !== RepositoryType.RPM && type !== RepositoryType.HELM
   ? packages.map(p => p.filePath.replace('pool/', '').split('/').slice(0, 2).join('/')).filter((p, i, arr) => arr.indexOf(p) === i)
   : []
 

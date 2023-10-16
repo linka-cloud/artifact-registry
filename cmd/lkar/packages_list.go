@@ -28,6 +28,7 @@ import (
 
 	"go.linka.cloud/artifact-registry/pkg/packages/apk"
 	"go.linka.cloud/artifact-registry/pkg/packages/deb"
+	"go.linka.cloud/artifact-registry/pkg/packages/helm"
 	"go.linka.cloud/artifact-registry/pkg/packages/rpm"
 	"go.linka.cloud/artifact-registry/pkg/slices"
 	"go.linka.cloud/artifact-registry/pkg/storage"
@@ -78,6 +79,12 @@ func newPkgListCmd(typ string) *cobra.Command {
 				pkgs = storage.AsArtifact(p)
 			case "rpm":
 				var p []*rpm.Package
+				if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
+					return err
+				}
+				pkgs = storage.AsArtifact(p)
+			case "helm":
+				var p []*helm.Package
 				if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
 					return err
 				}

@@ -15,7 +15,9 @@
 import { CheckBoxOutlineBlank, InsertDriveFileOutlined, UpdateOutlined } from '@mui/icons-material'
 import { Card, CardContent, CardHeader, Chip, Link, Stack, Typography } from '@mui/material'
 import moment from 'moment/moment'
-import { Repository } from '../../api/repository'
+import React from 'react'
+import { Repository, RepositoryType } from '../../api/repository'
+import { KubernetesIcon } from '../../icons/KubernetesIcon'
 import { LinuxIcon } from '../../icons/LinuxIcon'
 import { packageTypeIcon } from '../../icons/packageTypeIcon'
 import { defaultPadding } from '../../theme/theme'
@@ -41,7 +43,8 @@ export const RepositoryCard = ({ repository: { name, type, size, lastUpdated, me
       )} />
     <CardContent>
       <Stack direction='row'>
-        <Chip icon={<LinuxIcon />} label='linux' />
+        <Chip icon={type === RepositoryType.HELM ? <KubernetesIcon /> : <LinuxIcon sx={{ padding: 0.15 }} />}
+              label={type === RepositoryType.HELM ? 'kubernetes' : 'linux'} />
         <Chip icon={<InsertDriveFileOutlined />} label={type} />
         <Chip icon={<CheckBoxOutlineBlank />} label={`${packages.count} packages`} />
       </Stack>

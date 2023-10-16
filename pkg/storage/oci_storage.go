@@ -276,6 +276,9 @@ func (s *storage) ServeFile(w http.ResponseWriter, r *http.Request, path string)
 
 	logger.C(ctx).Infof("serving %s", path)
 	desc, err := s.find(ctx, path)
+	if err != nil {
+		return err
+	}
 	name := filepath.Base(path)
 	rd, err := s.rrepo.Blobs().Fetch(ctx, desc)
 	if err != nil {

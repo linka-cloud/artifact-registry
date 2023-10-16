@@ -25,6 +25,7 @@ import (
 
 	"go.linka.cloud/artifact-registry/pkg/packages/apk"
 	"go.linka.cloud/artifact-registry/pkg/packages/deb"
+	"go.linka.cloud/artifact-registry/pkg/packages/helm"
 	"go.linka.cloud/artifact-registry/pkg/packages/rpm"
 )
 
@@ -84,6 +85,19 @@ func newPkgSetupCmd(typ string) *cobra.Command {
 				Path:     prefix + repository,
 			}, force)
 		}
+	case "helm":
+		use = fmt.Sprintf("setup [repository]")
+		args = 1
+		setup = func(ctx context.Context, scheme string, args []string) error {
+			return helm.Setup(ctx, helm.SetupArgs{
+				User:     user,
+				Password: pass,
+				Scheme:   scheme,
+				Host:     registry,
+				Path:     prefix + repository,
+				Name:     strings.Replace(repository, "/", "-", -1),
+			}, force)
+		}
 	}
 	cmd := &cobra.Command{
 		Use:   use,
@@ -91,11 +105,11 @@ func newPkgSetupCmd(typ string) *cobra.Command {
 		Args:  cobra.ExactArgs(args),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			if runtime.GOOS != "linux" {
+			if runtime.GOOS != "linux" && typ != "helm" {
 				return fmt.Errorf("command only supported on Linux")
 			}
 			// Check if the user has root privileges
-			if os.Geteuid() != 0 {
+			if os.Geteuid() != 0 && typ != "helm" {
 				return fmt.Errorf("please run as root or sudo")
 			}
 			scheme := "https"
