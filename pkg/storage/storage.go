@@ -31,6 +31,9 @@ var ErrInvalidArtifactType = errors.New("invalid image's artifact type")
 
 type Codec = codec.Codec[Artifact]
 
+// TODO(adphi): keep only the read closer interface,
+// move to ArtifactInfo to its own interface and add a method to retrieve the ArtifactInfo, e.g. Stat() ArtifactInfo
+
 type Artifact interface {
 	io.ReadCloser
 	// Name is the name of the artifact, e.g. "jq".

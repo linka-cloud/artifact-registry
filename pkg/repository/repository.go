@@ -27,11 +27,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"go.linka.cloud/grpc-toolkit/logger"
 	"golang.org/x/sync/errgroup"
 	"oras.land/oras-go/v2/registry/remote"
 
 	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
-	"go.linka.cloud/artifact-registry/pkg/logger"
 	"go.linka.cloud/artifact-registry/pkg/packages"
 	"go.linka.cloud/artifact-registry/pkg/slices"
 	"go.linka.cloud/artifact-registry/pkg/storage"

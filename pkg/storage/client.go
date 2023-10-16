@@ -26,13 +26,12 @@ import (
 
 	"github.com/dustin/go-humanize"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
+	"go.linka.cloud/grpc-toolkit/logger"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 
 	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
-	"go.linka.cloud/artifact-registry/pkg/logger"
 	auth2 "go.linka.cloud/artifact-registry/pkg/storage/auth"
 )
 
@@ -50,19 +49,19 @@ func copts(name string) oras.CopyOptions {
 			Concurrency: runtime.NumCPU(),
 			PreCopy: func(ctx context.Context, desc ocispec.Descriptor) error {
 				times.Store(desc.Digest.String(), time.Now())
-				logger.C(ctx).WithFields(logrus.Fields{
-					"digest": desc.Digest.String(),
-					"size":   humanize.Bytes(uint64(desc.Size)),
-					"ref":    name,
-				}).Infof("uploading")
+				logger.C(ctx).WithFields(
+					"digest", desc.Digest.String(),
+					"size", humanize.Bytes(uint64(desc.Size)),
+					"ref", name,
+				).Infof("uploading")
 				return nil
 			},
 			OnCopySkipped: func(ctx context.Context, desc ocispec.Descriptor) error {
-				logger.C(ctx).WithFields(logrus.Fields{
-					"digest": desc.Digest.String(),
-					"size":   humanize.Bytes(uint64(desc.Size)),
-					"ref":    name,
-				}).Infof("already exists")
+				logger.C(ctx).WithFields(
+					"digest", desc.Digest.String(),
+					"size", humanize.Bytes(uint64(desc.Size)),
+					"ref", name,
+				).Infof("already exists")
 				return nil
 			},
 			PostCopy: func(ctx context.Context, desc ocispec.Descriptor) error {
@@ -70,12 +69,12 @@ func copts(name string) oras.CopyOptions {
 				if v, ok := times.Load(desc.Digest.String()); ok {
 					dur = time.Since(v.(time.Time))
 				}
-				logger.C(ctx).WithFields(logrus.Fields{
-					"digest":   desc.Digest.String(),
-					"size":     humanize.Bytes(uint64(desc.Size)),
-					"ref":      name,
-					"duration": dur,
-				}).Infof("uploaded")
+				logger.C(ctx).WithFields(
+					"digest", desc.Digest.String(),
+					"size", humanize.Bytes(uint64(desc.Size)),
+					"ref", name,
+					"duration", dur,
+				).Infof("uploaded")
 				return nil
 			},
 		},

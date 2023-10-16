@@ -30,6 +30,7 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"go.linka.cloud/grpc-toolkit/logger"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/errdef"
@@ -37,7 +38,6 @@ import (
 
 	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
 	"go.linka.cloud/artifact-registry/pkg/crypt/aes"
-	"go.linka.cloud/artifact-registry/pkg/logger"
 	"go.linka.cloud/artifact-registry/pkg/slices"
 )
 

@@ -25,9 +25,9 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"go.linka.cloud/grpc-toolkit/logger"
 
 	"go.linka.cloud/artifact-registry/pkg/crypt/rsa"
-	"go.linka.cloud/artifact-registry/pkg/logger"
 	"go.linka.cloud/artifact-registry/pkg/packages"
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )

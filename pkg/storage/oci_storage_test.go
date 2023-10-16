@@ -32,9 +32,9 @@ import (
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.linka.cloud/grpc-toolkit/logger"
 	"oras.land/oras-go/v2/registry/remote"
 
 	"go.linka.cloud/artifact-registry/pkg/codec"
@@ -52,7 +52,7 @@ func newRegistry(t *testing.T, ctx context.Context, auth map[string]configuratio
 	t.Helper()
 	config := &configuration.Configuration{}
 	config.Log.AccessLog.Disabled = true
-	config.Log.Level = configuration.Loglevel(logrus.FatalLevel.String())
+	config.Log.Level = configuration.Loglevel(logger.FatalLevel.String())
 	config.HTTP.Addr = addr
 	config.Auth = auth
 	config.Storage = map[string]configuration.Parameters{"inmemory": map[string]interface{}{}}

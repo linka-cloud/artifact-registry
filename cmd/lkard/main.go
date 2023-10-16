@@ -28,13 +28,12 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.linka.cloud/env"
+	"go.linka.cloud/grpc-toolkit/logger"
 	"go.linka.cloud/grpc-toolkit/react"
 
 	artifact_registry "go.linka.cloud/artifact-registry"
-	"go.linka.cloud/artifact-registry/pkg/logger"
 	"go.linka.cloud/artifact-registry/pkg/packages"
 	"go.linka.cloud/artifact-registry/pkg/repository"
 	"go.linka.cloud/artifact-registry/pkg/storage"
@@ -92,15 +91,15 @@ var (
 				p := x509.NewCertPool()
 				b, err := os.ReadFile(clientCA)
 				if err != nil {
-					logrus.Fatal(err)
+					logger.C(cmd.Context()).Fatal(err)
 				}
 				if !p.AppendCertsFromPEM(b) {
-					logrus.Fatal(err)
+					logger.C(cmd.Context()).Fatal(err)
 				}
 				opts = append(opts, storage.WithClientCA(p))
 			}
 			if err := run(cmd.Context(), opts...); err != nil {
-				logrus.Fatal(err)
+				logger.C(cmd.Context()).Fatal(err)
 			}
 		},
 	}
@@ -160,7 +159,7 @@ func run(ctx context.Context, opts ...storage.Option) error {
 	if aesKey == "" {
 		return fmt.Errorf("environment variable $%s must be set", EnvKey)
 	}
-	logrus.Infof("intializing artifact registry using backend %s", backend)
+	logger.C(ctx).Infof("intializing artifact registry using backend %s", backend)
 	router := mux.NewRouter()
 	k := sha256.Sum256([]byte(aesKey))
 	ctx = storage.WithOptions(ctx, append(opts, storage.WithKey(k[:]))...)
@@ -202,23 +201,23 @@ func run(ctx context.Context, opts ...storage.Option) error {
 					break
 				}
 			}
-			log := logrus.WithFields(logrus.Fields{
-				"method":    r.Method,
-				"path":      r.URL.Path,
-				"remote":    remote,
-				"userAgent": r.UserAgent(),
-			})
+			log := logger.C(r.Context()).WithFields(
+				"method", r.Method,
+				"path", r.URL.Path,
+				"remote", remote,
+				"userAgent", r.UserAgent(),
+			)
 			if u, _, ok := r.BasicAuth(); ok {
 				log = log.WithField("user", u)
 			}
 			time.Since(start)
 			router.ServeHTTP(wrap, r.WithContext(logger.Set(r.Context(), log)))
-			log = log.WithFields(logrus.Fields{
-				"duration":     time.Since(start),
-				"status":       http.StatusText(wrap.status),
-				"statusCode":   wrap.status,
-				"responseSize": wrap.size,
-			})
+			log = log.WithFields(
+				"duration", time.Since(start),
+				"status", http.StatusText(wrap.status),
+				"statusCode", wrap.status,
+				"responseSize", wrap.size,
+			)
 			if wrap.status == 0 {
 				wrap.status = 200
 			}
@@ -229,7 +228,7 @@ func run(ctx context.Context, opts ...storage.Option) error {
 			}
 		}),
 	}
-	logrus.Infof("starting server at %s", addr)
+	logger.C(ctx).Infof("starting server at %s", addr)
 	if cert != "" && key != "" {
 		return s.ListenAndServeTLS(cert, key)
 	}
