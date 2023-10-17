@@ -18,7 +18,7 @@ import { Credentials } from '../api/schemas/login'
 const typeUrl = (type: RepositoryType) => window.location.host.split('.')[0] === type.toString() ? window.location.host : `${window.location.host}/${type}`
 
 export const lkar = {
-  login: (repo?: string, creds?: Credentials) => `lkar login -u ${creds?.user ?? '$USER'} -p ${creds?.password ?? '$PASSWORD'} ${window.location.host}${repo ? '/' + repo : ''}`,
+  login: (repo?: string, creds?: Credentials) => `lkar login -u ${creds?.user ?? '$USER'} -p ${creds?.password ?? '$PASSWORD'} ${window.location.protocol === 'http:' ? '--plain-http ' : ''}${window.location.host}${repo ? '/' + repo : ''}`,
   setup: (type: RepositoryType, repo?: string, sub?: string, _?: Credentials) => `lkar ${type} setup ${window.location.protocol === 'http:' ? '--plain-http ' : ''}${repo ? `${window.location.host}/${repo}` : window.location.host} ${(sub ? `${sub.split('/')[0]} ${sub.split('/')[1]}` : '')}`,
   push: (type: RepositoryType, repo?: string, sub?: string, _?: Credentials) => `lkar ${type} push ${window.location.protocol === 'http:' ? '--plain-http ' : ''}${repo ? `${window.location.host}/${repo}` : window.location.host} ${(sub ? `${sub.split('/')[0]} ${sub.split('/')[1]} ` : '')}# my-package.${type}`,
   delete: (type: RepositoryType, filePath: string, repo?: string, _?: Credentials) => `lkar ${type} delete ${window.location.protocol === 'http:' ? '--plain-http ' : ''}${repo ? `${window.location.host}/${repo}` : window.location.host} ${filePath}`,
