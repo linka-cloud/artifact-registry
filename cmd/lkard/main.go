@@ -51,6 +51,7 @@ const (
 	EnvClientCA     = "ARTIFACT_REGISTRY_CLIENT_CA"
 	EnvTLSCert      = "ARTIFACT_REGISTRY_TLS_CERT"
 	EnvTLSKey       = "ARTIFACT_REGISTRY_TLS_KEY"
+	EnvDisableUI    = "ARTIFACT_REGISTRY_DISABLE_UI"
 )
 
 var (
@@ -71,6 +72,8 @@ var (
 	key, cert string
 
 	clientCA string
+
+	disableUI = false
 
 	cmd = &cobra.Command{
 		Use:          "artifact-registry (repository)",
@@ -131,6 +134,8 @@ func main() {
 	cmd.Flags().StringVar(&clientCA, "client-ca", env.Get[string](EnvClientCA), "tls client certificate authority [$"+EnvClientCA+"]")
 	cmd.Flags().StringVar(&cert, "tls-cert", env.Get[string](EnvTLSCert), "tls certificate [$"+EnvTLSCert+"]")
 	cmd.Flags().StringVar(&key, "tls-key", env.Get[string](EnvTLSKey), "tls key [$"+EnvTLSKey+"]")
+	cmd.Flags().BoolVar(&disableUI, "disable-ui", env.GetDefault(EnvDisableUI, disableUI), "disable the Web UI [$"+EnvDisableUI+"]")
+
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
 	}
@@ -171,14 +176,17 @@ func run(ctx context.Context, repo string, opts ...storage.Option) error {
 	router := mux.NewRouter().StrictSlash(true)
 	k := sha256.Sum256([]byte(aesKey))
 	ctx = storage.WithOptions(ctx, append(opts, storage.WithKey(k[:]))...)
-	uih, err := react.NewHandler(ui.UI, "build")
-	if err != nil {
-		return err
+
+	if !disableUI {
+		uih, err := react.NewHandler(ui.UI, "build")
+		if err != nil {
+			return err
+		}
+		router.PathPrefix("/ui").Handler(http.StripPrefix("/ui", uih))
+		router.Path("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/ui", http.StatusFound)
+		})
 	}
-	router.PathPrefix("/ui").Handler(http.StripPrefix("/ui", uih))
-	router.Path("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/ui", http.StatusFound)
-	})
 
 	router.Path("/_/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
