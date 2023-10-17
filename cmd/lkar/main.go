@@ -21,6 +21,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"go.linka.cloud/grpc-toolkit/cli/clifmt"
+	"go.linka.cloud/grpc-toolkit/logger"
 	"go.linka.cloud/printer"
 	"oras.land/oras-go/v2/registry/remote/credentials"
 )
@@ -121,6 +123,9 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&caFile, "ca-file", "", "", "CA certificate file")
 	rootCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "k", false, "Do not verify tls certificates")
 	rootCmd.PersistentFlags().BoolVarP(&plainHTTP, "plain-http", "H", false, "Use http instead of https")
+
+	logger.StandardLogger().Logger().SetFormatter(clifmt.New(clifmt.NoneTimeFormat))
+	logger.SetDefault(logger.StandardLogger())
 }
 
 func main() {
