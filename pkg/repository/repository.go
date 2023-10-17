@@ -108,7 +108,7 @@ func (h *handler) Login(w http.ResponseWriter, r *http.Request) {
 		h.saveCredentials(w, r)
 		return
 	}
-	http.Error(w, "No repository found", http.StatusNotFound)
+	h.saveCredentials(w, r)
 }
 
 func (h *handler) saveCredentials(w http.ResponseWriter, r *http.Request) {
@@ -119,12 +119,16 @@ func (h *handler) saveCredentials(w http.ResponseWriter, r *http.Request) {
 	s, err := h.store.Get(r, sessionName)
 	if err != nil {
 		logger.C(r.Context()).WithError(err).Error("failed to get session")
+		s.Options.MaxAge = -1
+		if err := s.Save(r, w); err != nil {
+			logger.C(r.Context()).WithError(err).Error("failed to delete session")
+		}
 		return
 	}
 	s.Values["user"] = user
 	s.Values["pass"] = pass
 	if err := s.Save(r, w); err != nil {
-		logger.C(r.Context()).WithError(err).Error("failed to save session")
+		logger.C(r.Context()).WithError(err).Error("failed to delete session")
 	}
 }
 
@@ -348,6 +352,11 @@ func (h *handler) Packages(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) cookie2Basic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// if we already have basic auth, we can skip
+		if _, _, ok := r.BasicAuth(); ok {
+			next.ServeHTTP(w, r)
+			return
+		}
 		s, err := h.store.Get(r, "auth")
 		if err != nil {
 			next.ServeHTTP(w, r)
