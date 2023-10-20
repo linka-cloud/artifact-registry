@@ -41,7 +41,10 @@ import (
 	"go.linka.cloud/artifact-registry/pkg/slices"
 )
 
-var cache = cache2.New()
+var (
+	cache = cache2.New()
+	ttl   = 5 * time.Minute
+)
 
 type storage struct {
 	opts  options
@@ -442,7 +445,7 @@ func (s *storage) manifest(ctx context.Context) (m ocispec.Manifest, err error) 
 	}
 	if v, ok := cache.Get(desc.Digest.String()); ok {
 		// reset ttl
-		cache.Set(desc.Digest.String(), v, cache2.WithTTL(5*time.Minute))
+		cache.Set(desc.Digest.String(), v, cache2.WithTTL(ttl))
 		return v.(ocispec.Manifest), nil
 	}
 	logger.C(ctx).Infof("retrieve manifest %s", desc.Digest.String())
@@ -458,7 +461,7 @@ func (s *storage) manifest(ctx context.Context) (m ocispec.Manifest, err error) 
 	if m.ArtifactType != s.ArtefactTypeRegistry() {
 		return m, fmt.Errorf("%w: %s", ErrInvalidArtifactType, m.MediaType)
 	}
-	cache.Set(desc.Digest.String(), m, cache2.WithTTL(5*time.Minute))
+	cache.Set(desc.Digest.String(), m, cache2.WithTTL(ttl))
 	return m, nil
 }
 

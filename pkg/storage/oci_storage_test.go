@@ -302,7 +302,7 @@ func TestStorage(t *testing.T) {
 			},
 		},
 		{
-			name: "writen artifacts are readable",
+			name: "written artifacts are readable",
 			fn: func(t *testing.T, ctx context.Context, s *storage, reg *remote.Repository) {
 				rc, err := s.Open(ctx, "test2.txt")
 				require.NoError(t, err)
