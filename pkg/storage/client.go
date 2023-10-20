@@ -82,17 +82,10 @@ func copts(name string) oras.CopyOptions {
 }
 
 func (o options) SetClient(ctx context.Context, reg *remote.Repository) {
-	a := auth2.FromContext(ctx)
-	if a == nil {
-		reg.Client = http.DefaultClient
-		reg.PlainHTTP = o.plainHTTP
-		return
-	}
-	u, p, ok := a.BasicAuth()
-	if !ok {
-		reg.Client = http.DefaultClient
-		reg.PlainHTTP = o.plainHTTP
-		return
+	// we might need an auth client even if we do not have credentials to authenticate anonymous access
+	var u, p string
+	if a := auth2.FromContext(ctx); a != nil {
+		u, p, _ = a.BasicAuth()
 	}
 	h := sha256.New()
 	h.Write([]byte(u))
