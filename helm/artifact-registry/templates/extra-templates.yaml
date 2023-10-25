@@ -1,0 +1,4 @@
+{{- range .Values.extraTemplates }}
+---
+{{ include "artifact-registry.renderTemplate" (dict "value" . "context" $) }}
+{{- end }}

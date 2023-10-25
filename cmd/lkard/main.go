@@ -83,7 +83,8 @@ var (
 	debug bool
 
 	cmd = &cobra.Command{
-		Use:          "artifact-registry (repository)",
+		Use:          "lkard (repository)",
+		Short:        "An OCI based Artifact Registry",
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		Run: func(cmd *cobra.Command, args []string) {

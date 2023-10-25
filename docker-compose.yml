@@ -1,0 +1,21 @@
+version: '3.7'
+services:
+  registry:
+    image: registry:2
+  artifact-registry:
+    container_name: artifact-registry
+    image: linkacloud/artifact-registry:dev
+    environment:
+      ARTIFACT_REGISTRY_AES_KEY: "noop"
+    command:
+    - --backend=registry:5000
+    - --no-https
+    ports:
+    - "9887:9887"
+  artifact-registry-client:
+    container_name: artifact-registry-client
+    image: linkacloud/artifact-registry:dev
+    init: true
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+    - sleep infinity

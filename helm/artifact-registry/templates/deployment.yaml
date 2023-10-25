@@ -1,0 +1,151 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "artifact-registry.fullname" . }}
+  labels:
+    {{- include "artifact-registry.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "artifact-registry.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "artifact-registry.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "artifact-registry.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: {{ .Chart.Name }}
+        securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        args:
+        - "--addr=:{{ default 9887 .Values.config.port }}"
+        - --backend={{ include "artifact-registry.backend" . }}
+          {{- if or (.Values.config.backend).plainHTTP (and $.Values.registry.enabled (not $.Values.registry.tlsSecretName)) }}
+        - --no-https
+          {{- end }}
+          {{- if (.Values.config.backend).insecure }}
+        - --insecure
+          {{- end }}
+          {{- if .Values.config.domain }}
+        - --domain={{ .Values.config.domain }}
+          {{- end }}
+          {{- if ((.Values.config).tls).secretName }}
+        - --tls-cert=/etc/artifact-registry/tls/tls.crt
+        - --tls-key=/etc/artifact-registry/tls/tls.key
+          {{- end }}
+          {{- if (.Values.config.backend).clientCA }}
+        - --client-ca=/etc/artifact-registry/tls/client-ca.crt
+          {{- end }}
+          {{- if (.Values.config.proxy).host }}
+        - --proxy={{ .Values.config.proxy.host }}
+          {{- if (.Values.config.proxy).plainHTTP }}
+        - --proxy-no-https
+          {{- end }}
+          {{- if (.Values.config.proxy).insecure }}
+        - --proxy-insecure
+          {{- end }}
+          {{- if (.Values.config.proxy).clientCA }}
+        - --proxy-client-ca=/etc/artifact-registry/tls/proxy-client-ca.crt
+          {{- end }}
+          {{- end }}
+          {{- if .Values.config.disableUI }}
+        - --disable-ui
+          {{- end }}
+          {{- if (.Values.config.backend).repo }}
+        - {{ .Values.config.backend.repo }}
+          {{- end }}
+        env:
+        - name: ARTIFACT_REGISTRY_AES_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "artifact-registry.aesKeySecretName" . }}
+              key: {{ include "artifact-registry.aesKeySecretKeyName" . }}
+          {{- if or (.Values.config.proxy).username (.Values.config.proxy).password }}
+        - name: ARTIFACT_REGISTRY_PROXY_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "artifact-registry.fullname" . }}-proxy-auth
+              key: username
+        - name: ARTIFACT_REGISTRY_PROXY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "artifact-registry.fullname" . }}-proxy-auth
+              key: password
+          {{- end }}
+          {{- if .Values.env }}
+          {{- toYaml .Values.env | nindent 12 }}
+          {{- end }}
+          {{- if or .Values.config.tls (.Values.config.backend).clientCA }}
+        volumeMounts:
+            {{- if (.Values.config.tls).secretName }}
+        - mountPath: /etc/artifact-registry/tls
+          name: tls
+            {{- end }}
+            {{- with .Values.config.backend.clientCA }}
+        - mountPath: /etc/artifact-registry/tls/client-ca.crt
+          name: client-ca
+          subPath: ca.crt
+            {{- end }}
+            {{- with (.Values.config.proxy).clientCA }}
+        - mountPath: /etc/artifact-registry/tls/proxy-client-ca.crt
+          name: proxy-client-ca
+          subPath: ca.crt
+            {{- end }}
+          {{- end }}
+        ports:
+        - name: {{ (empty (.Values.config.tls).secretName) | ternary "http" "https" }}
+          containerPort: {{ default 9887 .Values.config.port }}
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /_/health
+            port: {{ (empty (.Values.config.tls).secretName) | ternary "http" "https" }}
+            scheme: {{ (empty (.Values.config.tls).secretName) | ternary "http" "https" | upper }}
+        readinessProbe:
+          httpGet:
+            path: /_/health
+            port: {{ (empty (.Values.config.tls).secretName) | ternary "http" "https" }}
+            scheme: {{ (empty (.Values.config.tls).secretName) | ternary "http" "https" | upper }}
+        resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- if or (and .Values.config.tls .Values.config.tls.secretName) (.Values.config.backend).clientCA }}
+      volumes:
+      {{- with .Values.config.tls}}
+      - name: tls
+        secret:
+          secretName: {{ .secretName }}
+      {{- end }}
+      {{- with .Values.config.backend.clientCA }}
+      - name: client-ca
+        secret:
+          secretName: {{ . }}
+      {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

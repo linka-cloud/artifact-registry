@@ -1,0 +1,120 @@
+suite: test aes config
+templates:
+- secret.yaml
+- deployment.yaml
+release:
+  name: test
+  namespace: test-namespace
+tests:
+- it: should preserve generated secret from deletion on uninstall
+  set:
+    config.aes: null
+  asserts:
+  - template: secret.yaml
+    isKind:
+      of: Secret
+  - template: secret.yaml
+    equal:
+      path: metadata.annotations["helm.sh/resource-policy"]
+      value: "keep"
+- it: should generate a key and a secret when aes is not set
+  set:
+    config.aes: null
+  asserts:
+  - template: secret.yaml
+    isKind:
+      of: Secret
+  - template: secret.yaml
+    equal:
+      path: metadata.name
+      value: test-artifact-registry-key
+  - template: secret.yaml
+    exists:
+      path: data["aes-key"]
+  - template: deployment.yaml
+    equal:
+      path: spec.template.spec.containers[0].env[0].name
+      value: ARTIFACT_REGISTRY_AES_KEY
+  - template: deployment.yaml
+    equal:
+      path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
+      value: test-artifact-registry-key
+  - template: deployment.yaml
+    equal:
+      path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.key
+      value: aes-key
+- it: should create a secret with default secret name and secret key when key is set
+  set:
+    config.aes.key: "test"
+  asserts:
+  - template: secret.yaml
+    isKind:
+      of: Secret
+  - template: secret.yaml
+    equal:
+      path: metadata.name
+      value: test-artifact-registry-key
+  - template: secret.yaml
+    exists:
+      path: data["aes-key"]
+  - template: deployment.yaml
+    equal:
+      path: spec.template.spec.containers[0].env[0].name
+      value: ARTIFACT_REGISTRY_AES_KEY
+  - template: deployment.yaml
+    equal:
+      path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
+      value: test-artifact-registry-key
+  - template: deployment.yaml
+    equal:
+      path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.key
+      value: aes-key
+- it: should create a secret with provided secret name and secret key when key is set
+  set:
+    config.aes.key: "test"
+    config.aes.secret.name: "my-secret"
+    config.aes.secret.key: "my-key"
+  asserts:
+  - template: secret.yaml
+    isKind:
+      of: Secret
+  - template: secret.yaml
+    equal:
+      path: metadata.name
+      value: my-secret
+  - template: secret.yaml
+    exists:
+      path: data["my-key"]
+  - template: deployment.yaml
+    equal:
+      path: spec.template.spec.containers[0].env[0].name
+      value: ARTIFACT_REGISTRY_AES_KEY
+  - template: deployment.yaml
+    equal:
+      path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
+      value: my-secret
+  - template: deployment.yaml
+    equal:
+      path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.key
+      value: my-key
+
+- it: should not generate a secret when key is empty and secret name is set
+  set:
+    config.aes.secret.name: my-secret
+    config.aes.secret.key: my-key
+  asserts:
+  - template: secret.yaml
+    hasDocuments:
+      count: 0
+  - template: deployment.yaml
+    equal:
+      path: spec.template.spec.containers[0].env[0].name
+      value: ARTIFACT_REGISTRY_AES_KEY
+  - template: deployment.yaml
+    equal:
+      path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
+      value: my-secret
+  - template: deployment.yaml
+    equal:
+      path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.key
+      value: my-key

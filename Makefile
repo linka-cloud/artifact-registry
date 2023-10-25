@@ -38,3 +38,9 @@ docker-push:
 ifneq ($(TAG),)
 	@docker image push $(REPOSITORY)/$(PROJECT):latest
 endif
+
+.PHONY: cli-docs
+cli-docs:
+	@rm -rf ./docs/{lkar,lkard}
+	@go run -tags=docs ./cmd/lkar docs ./docs/lkar
+	@go run -tags=docs ./cmd/lkard docs ./docs/lkard

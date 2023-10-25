@@ -4,3 +4,4 @@ tmp
 bin
 **/node_modules
 **/build
+docs

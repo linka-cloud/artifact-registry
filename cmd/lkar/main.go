@@ -55,6 +55,7 @@ var (
 
 	rootCmd = &cobra.Command{
 		Use:               "lkar",
+		Short:             "An OCI based Artifact Registry",
 		SilenceUsage:      true,
 		PersistentPreRunE: setup,
 	}
