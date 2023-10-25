@@ -147,6 +147,10 @@ var (
 			if tagPerArtifact {
 				opts = append(opts, storage.WithArtifactTags())
 			}
+			if strings.HasSuffix(backend, "docker.io") && proxyAddr == "" {
+				logger.C(cmd.Context()).Warnf("using docker.io as backend without proxy is not recommended")
+				logger.C(cmd.Context()).Warnf("the rate limit of 100 requests per 6 hours is very easy to reach using this tool")
+			}
 			if err := run(cmd.Context(), repo, opts...); err != nil {
 				logger.C(cmd.Context()).Fatal(err)
 			}

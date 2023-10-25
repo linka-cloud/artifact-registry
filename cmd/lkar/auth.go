@@ -28,6 +28,8 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
+var authGroup = &cobra.Group{ID: "0_auth", Title: "Authentication Commands:"}
+
 var (
 	passStdin bool
 
@@ -45,6 +47,7 @@ Log in with username and password in an interactive terminal and no TLS check:
   lkar login --insecure localhost:5000
 `,
 		Args:    cobra.ExactArgs(1),
+		GroupID: authGroup.ID,
 		PreRunE: setup,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if user == "" {
@@ -110,9 +113,10 @@ Log in with username and password in an interactive terminal and no TLS check:
 		},
 	}
 	logoutCmd = &cobra.Command{
-		Use:   "logout [repository]",
-		Short: "Logout from an Artifact Registry repository",
-		Args:  cobra.ExactArgs(1),
+		Use:     "logout [repository]",
+		Short:   "Logout from an Artifact Registry repository",
+		GroupID: authGroup.ID,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			creds, err := credsStore.Get(cmd.Context(), repoURL())
 			if err != nil {
@@ -129,4 +133,5 @@ Log in with username and password in an interactive terminal and no TLS check:
 func init() {
 	loginCmd.Flags().BoolVar(&passStdin, "password-stdin", false, "Take the password from stdin")
 	rootCmd.AddCommand(loginCmd, logoutCmd)
+	rootCmd.AddGroup(authGroup)
 }

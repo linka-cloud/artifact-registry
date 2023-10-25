@@ -20,10 +20,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var PkgGroup = &cobra.Group{ID: "2_packages", Title: "Package Commands:"}
+
 func newPkgCmd(typ string) *cobra.Command {
 	pkgCmd := &cobra.Command{
 		Use:               typ,
-		Short:             fmt.Sprintf("Root command for %s management", typ),
+		Short:             fmt.Sprintf("Manage %s packages", typ),
+		GroupID:           PkgGroup.ID,
 		PersistentPreRunE: setup,
 	}
 	pkgCmd.AddCommand(
@@ -37,6 +40,7 @@ func newPkgCmd(typ string) *cobra.Command {
 }
 
 func init() {
+	rootCmd.AddGroup(PkgGroup)
 	for _, v := range []string{"apk", "deb", "rpm", "helm"} {
 		rootCmd.AddCommand(newPkgCmd(v))
 	}

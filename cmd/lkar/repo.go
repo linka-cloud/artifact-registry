@@ -30,11 +30,14 @@ import (
 )
 
 var (
+	repoGroup = &cobra.Group{ID: "1_repositories", Title: "Repository Commands:"}
+
 	repoCmd = &cobra.Command{
 		Use:     "repositories [registry]",
 		Short:   "List repositories in the registry",
 		Aliases: []string{"repo", "repos"},
 		Args:    cobra.ExactArgs(1),
+		GroupID: repoGroup.ID,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			u := urlWithType() + "/_repositories/" + repository
 			if repository == "" {
@@ -102,4 +105,5 @@ func init() {
 	repoCmd.PersistentFlags().StringVarP(&output, "output", "o", "table", "Output format (table, json, yaml)")
 	repoCmd.RegisterFlagCompletionFunc("output", completeOutput)
 	rootCmd.AddCommand(repoCmd)
+	rootCmd.AddGroup(repoGroup)
 }

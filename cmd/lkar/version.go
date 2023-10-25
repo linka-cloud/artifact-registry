@@ -24,9 +24,10 @@ import (
 
 var (
 	cmdVersion = &cobra.Command{
-		Use: "version",
+		Use:   "version",
+		Short: "Print the version and build date of lk-artifact-registry",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("%s (%s)\n", artifact_registry.Version, artifact_registry.BuildDate)
+			fmt.Printf("%s\n%s\n", artifact_registry.Version, artifact_registry.BuildDate)
 		},
 	}
 )
