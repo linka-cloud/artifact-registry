@@ -37,10 +37,10 @@ import (
 	"go.linka.cloud/grpc-toolkit/logger"
 	"oras.land/oras-go/v2/registry/remote"
 
+	"go.linka.cloud/artifact-registry/pkg/auth"
 	"go.linka.cloud/artifact-registry/pkg/codec"
 	"go.linka.cloud/artifact-registry/pkg/crypt/aes"
 	"go.linka.cloud/artifact-registry/pkg/slices"
-	"go.linka.cloud/artifact-registry/pkg/storage/auth"
 )
 
 const (

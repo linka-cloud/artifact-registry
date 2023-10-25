@@ -16,10 +16,6 @@ package storage
 
 import (
 	"context"
-	"crypto/sha256"
-	"crypto/tls"
-	"fmt"
-	"net/http"
 	"runtime"
 	"sync"
 	"time"
@@ -28,19 +24,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.linka.cloud/grpc-toolkit/logger"
 	"oras.land/oras-go/v2"
-	"oras.land/oras-go/v2/registry/remote"
-	"oras.land/oras-go/v2/registry/remote/auth"
-
-	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
-	auth2 "go.linka.cloud/artifact-registry/pkg/storage/auth"
 )
-
-const (
-// plainHTTP = false
-// plainHTTP = true
-)
-
-var clientCache = cache2.New()
 
 func copts(name string) oras.CopyOptions {
 	var times sync.Map
@@ -79,43 +63,4 @@ func copts(name string) oras.CopyOptions {
 			},
 		},
 	}
-}
-
-func (o options) SetClient(ctx context.Context, reg *remote.Repository) {
-	// we might need an auth client even if we do not have credentials to authenticate anonymous access
-	var u, p string
-	if a := auth2.FromContext(ctx); a != nil {
-		u, p, _ = a.BasicAuth()
-	}
-	h := sha256.New()
-	h.Write([]byte(u))
-	h.Write([]byte(p))
-	h.Write([]byte(o.host))
-	key := fmt.Sprintf("%x", h.Sum(nil))
-	if v, ok := clientCache.Get(key); ok {
-		clientCache.Set(key, v)
-		reg.Client = v.(remote.Client)
-		reg.PlainHTTP = o.plainHTTP
-		return
-	}
-	c := &auth.Client{
-		Client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: o.insecure,
-					ClientCAs:          o.clientCA,
-				},
-			},
-		},
-		// expectedHostAddress is of form ipaddr:port
-		Credential: auth.StaticCredential(o.host, auth.Credential{
-			Username: u,
-			Password: p,
-		}),
-		// Cache caches credentials for accessing the remote registry.
-		Cache: auth.NewCache(),
-	}
-	clientCache.Set(key, c)
-	reg.Client = c
-	reg.PlainHTTP = o.plainHTTP
 }

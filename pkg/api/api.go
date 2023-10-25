@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package repository
+package api
 
 import (
 	"context"
@@ -29,18 +29,16 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.linka.cloud/grpc-toolkit/logger"
 	"golang.org/x/sync/errgroup"
-	"oras.land/oras-go/v2/registry/remote"
+	"oras.land/oras-go/v2/registry"
 
-	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
+	"go.linka.cloud/artifact-registry/pkg/auth"
+	"go.linka.cloud/artifact-registry/pkg/cache"
 	"go.linka.cloud/artifact-registry/pkg/packages"
 	"go.linka.cloud/artifact-registry/pkg/slices"
 	"go.linka.cloud/artifact-registry/pkg/storage"
-	"go.linka.cloud/artifact-registry/pkg/storage/auth"
 )
 
 const sessionName = "auth"
-
-var cache = cache2.New()
 
 type Stats struct {
 	Size  int64 `json:"size"`
@@ -62,17 +60,16 @@ type handler struct {
 
 func (h *handler) Login(w http.ResponseWriter, r *http.Request) {
 	ctx := auth.Context(r.Context(), r)
-	o := storage.Options(ctx)
 	name, typ := mux.Vars(r)["repo"], mux.Vars(r)["type"]
-	if n := storage.Options(ctx).Repo(); name == "" && n != "" {
+	o := storage.Options(ctx)
+	if n := o.Repo(); name == "" && n != "" {
 		name = n
 	}
-	reg, err := remote.NewRegistry(o.Host())
+	reg, err := o.NewRegistry(ctx)
 	if err != nil {
 		storage.Error(w, err)
 		return
 	}
-	o.SetClient(ctx, (*remote.Repository)(&reg.RepositoryOptions))
 	if name == "" {
 		skip := errors.New("skip")
 		if err := reg.Repositories(ctx, "", func(r []string) error {
@@ -150,17 +147,13 @@ type credentials struct {
 
 func (h *handler) Credentials(w http.ResponseWriter, r *http.Request) {
 	u, p, _ := r.BasicAuth()
-	// if !ok {
-	// 	http.Error(w, "No credentials", http.StatusUnauthorized)
-	// 	return
-	// }
 	if err := json.NewEncoder(w).Encode(credentials{User: u, Password: p}); err != nil {
 		storage.Error(w, err)
 		return
 	}
 }
 
-func listImageRepositories(ctx context.Context, reg *remote.Registry, name string, typ ...string) ([]*Repository, error) {
+func listImageRepositories(ctx context.Context, reg registry.Registry, name string, typ ...string) ([]*Repository, error) {
 	repo, err := reg.Repository(ctx, name)
 	if err != nil {
 		if storage.IsNotFound(err) {
@@ -204,7 +197,7 @@ func listImageRepositories(ctx context.Context, reg *remote.Registry, name strin
 		} else {
 			m = v.(ocispec.Manifest)
 		}
-		cache.Set(desc.Digest.String(), m, cache2.WithTTL(5*time.Minute))
+		cache.Set(desc.Digest.String(), m, cache.WithTTL(cache.DefaultTTL))
 		t, err := time.Parse(time.RFC3339, m.Annotations[ocispec.AnnotationCreated])
 		if err != nil {
 			return err
@@ -253,12 +246,11 @@ func (h *handler) ListRepositories(w http.ResponseWriter, r *http.Request) {
 	ctx := auth.Context(r.Context(), r)
 	o := storage.Options(ctx)
 	typ := mux.Vars(r)["type"]
-	reg, err := remote.NewRegistry(o.Host())
+	reg, err := o.NewRegistry(ctx)
 	if err != nil {
 		storage.Error(w, err)
 		return
 	}
-	o.SetClient(ctx, (*remote.Repository)(&reg.RepositoryOptions))
 	var repos []string
 	if err := reg.Repositories(ctx, "", func(r []string) error {
 		repos = append(repos, r...)
@@ -298,17 +290,15 @@ func (h *handler) ListRepositories(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) ListImageRepositories(w http.ResponseWriter, r *http.Request) {
 	ctx := auth.Context(r.Context(), r)
-	o := storage.Options(ctx)
 	name, typ := mux.Vars(r)["repo"], mux.Vars(r)["type"]
 	if n := storage.Options(ctx).Repo(); name == "" && n != "" {
 		name = n
 	}
-	reg, err := remote.NewRegistry(o.Host())
+	reg, err := storage.Options(ctx).NewRegistry(ctx)
 	if err != nil {
 		storage.Error(w, err)
 		return
 	}
-	o.SetClient(ctx, (*remote.Repository)(&reg.RepositoryOptions))
 	out, err := listImageRepositories(ctx, reg, name, typ)
 	if err != nil {
 		storage.Error(w, err)

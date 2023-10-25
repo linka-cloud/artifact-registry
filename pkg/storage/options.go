@@ -16,7 +16,8 @@ package storage
 
 import (
 	"context"
-	"crypto/x509"
+
+	"go.linka.cloud/artifact-registry/pkg/registry"
 )
 
 type optionsKey struct{}
@@ -38,10 +39,8 @@ type options struct {
 	host         string
 	key          []byte
 	repo         string
-	plainHTTP    bool
-	insecure     bool
 	artifactTags bool
-	clientCA     *x509.CertPool
+	ropts        []registry.Option
 }
 
 func (o options) Host() string {
@@ -54,6 +53,14 @@ func (o options) Repo() string {
 
 func (o options) Key() []byte {
 	return o.key
+}
+
+func (o options) NewRegistry(ctx context.Context) (registry.Registry, error) {
+	return registry.NewRegistry(ctx, o.host, o.ropts...)
+}
+
+func (o options) NewRepository(ctx context.Context, name string) (registry.Repository, error) {
+	return registry.NewRepository(ctx, name, o.ropts...)
 }
 
 type Option func(o *options)
@@ -76,26 +83,14 @@ func WithRepo(repo string) Option {
 	}
 }
 
-func WithPlainHTTP() Option {
-	return func(o *options) {
-		o.plainHTTP = true
-	}
-}
-
-func WithInsecure() Option {
-	return func(o *options) {
-		o.insecure = true
-	}
-}
-
 func WithArtifactTags() Option {
 	return func(o *options) {
 		o.artifactTags = true
 	}
 }
 
-func WithClientCA(clientCA *x509.CertPool) Option {
+func WithRegistryOptions(opts ...registry.Option) Option {
 	return func(o *options) {
-		o.clientCA = clientCA
+		o.ropts = opts
 	}
 }

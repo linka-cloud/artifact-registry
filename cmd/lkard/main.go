@@ -34,8 +34,9 @@ import (
 	"go.linka.cloud/grpc-toolkit/react"
 
 	artifact_registry "go.linka.cloud/artifact-registry"
+	"go.linka.cloud/artifact-registry/pkg/api"
 	"go.linka.cloud/artifact-registry/pkg/packages"
-	"go.linka.cloud/artifact-registry/pkg/repository"
+	"go.linka.cloud/artifact-registry/pkg/registry"
 	"go.linka.cloud/artifact-registry/pkg/storage"
 	"go.linka.cloud/artifact-registry/ui"
 )
@@ -52,11 +53,18 @@ const (
 	EnvTLSCert      = "ARTIFACT_REGISTRY_TLS_CERT"
 	EnvTLSKey       = "ARTIFACT_REGISTRY_TLS_KEY"
 	EnvDisableUI    = "ARTIFACT_REGISTRY_DISABLE_UI"
+
+	EnvProxy         = "ARTIFACT_REGISTRY_PROXY"
+	EnvProxyNoHTTPS  = "ARTIFACT_REGISTRY_PROXY_NO_HTTPS"
+	EnvProxyInsecure = "ARTIFACT_REGISTRY_PROXY_INSECURE"
+	EnvProxyClientCA = "ARTIFACT_REGISTRY_PROXY_CLIENT_CA"
+	EnvProxyUser     = "ARTIFACT_REGISTRY_PROXY_USER"
+	EnvProxyPassword = "ARTIFACT_REGISTRY_PROXY_PASSWORD"
 )
 
 var (
 	addr = ":9887"
-	// backend = "192.168.10.11:5000"
+
 	backend = "docker.io"
 
 	domain = ""
@@ -75,6 +83,13 @@ var (
 
 	disableUI = false
 
+	proxyAddr     string
+	proxyNoHTTPS  = false
+	proxyInsecure = false
+	proxyClientCA string
+	proxyUser     string
+	proxyPassword string
+
 	cmd = &cobra.Command{
 		Use:          "artifact-registry (repository)",
 		Args:         cobra.MaximumNArgs(1),
@@ -85,18 +100,16 @@ var (
 				repo = args[0]
 			}
 			// TODO(adphi): validate host
-			opts := []storage.Option{storage.WithHost(backend)}
+			ropts := []registry.Option{
+				registry.WithProxy(proxyAddr),
+				registry.WithProxyUser(proxyUser),
+				registry.WithProxyPassword(proxyPassword),
+			}
 			if noHTTPS {
-				opts = append(opts, storage.WithPlainHTTP())
+				ropts = append(ropts, registry.WithPlainHTTP())
 			}
 			if insecure {
-				opts = append(opts, storage.WithInsecure())
-			}
-			if tagPerArtifact {
-				opts = append(opts, storage.WithArtifactTags())
-			}
-			if repo != "" {
-				opts = append(opts, storage.WithRepo(repo))
+				ropts = append(ropts, registry.WithInsecure())
 			}
 			if clientCA != "" {
 				p := x509.NewCertPool()
@@ -107,7 +120,32 @@ var (
 				if !p.AppendCertsFromPEM(b) {
 					logger.C(cmd.Context()).Fatal(err)
 				}
-				opts = append(opts, storage.WithClientCA(p))
+				ropts = append(ropts, registry.WithClientCA(p))
+			}
+			if proxyNoHTTPS {
+				ropts = append(ropts, registry.WithProxyPlainHTTP())
+			}
+			if proxyInsecure {
+				ropts = append(ropts, registry.WithProxyInsecure())
+			}
+			if proxyClientCA != "" {
+				p := x509.NewCertPool()
+				b, err := os.ReadFile(proxyClientCA)
+				if err != nil {
+					logger.C(cmd.Context()).Fatal(err)
+				}
+				if !p.AppendCertsFromPEM(b) {
+					logger.C(cmd.Context()).Fatal(err)
+				}
+				ropts = append(ropts, registry.WithProxyClientCA(p))
+			}
+			opts := []storage.Option{
+				storage.WithHost(backend),
+				storage.WithRepo(repo),
+				storage.WithRegistryOptions(ropts...),
+			}
+			if tagPerArtifact {
+				opts = append(opts, storage.WithArtifactTags())
 			}
 			if err := run(cmd.Context(), repo, opts...); err != nil {
 				logger.C(cmd.Context()).Fatal(err)
@@ -135,6 +173,13 @@ func main() {
 	cmd.Flags().StringVar(&cert, "tls-cert", env.Get[string](EnvTLSCert), "tls certificate [$"+EnvTLSCert+"]")
 	cmd.Flags().StringVar(&key, "tls-key", env.Get[string](EnvTLSKey), "tls key [$"+EnvTLSKey+"]")
 	cmd.Flags().BoolVar(&disableUI, "disable-ui", env.GetDefault(EnvDisableUI, disableUI), "disable the Web UI [$"+EnvDisableUI+"]")
+
+	cmd.Flags().StringVar(&proxyAddr, "proxy", env.GetDefault(EnvProxy, proxyAddr), "proxy backend registry hostname (and port if not 443 or 80) [$"+EnvProxy+"]")
+	cmd.Flags().BoolVar(&proxyNoHTTPS, "proxy-no-https", env.GetDefault(EnvProxyNoHTTPS, noHTTPS), "disable proxy registry client https [$"+EnvProxyNoHTTPS+"]")
+	cmd.Flags().BoolVar(&proxyInsecure, "proxy-insecure", env.GetDefault(EnvProxyInsecure, insecure), "disable proxy registry client tls verification [$"+EnvProxyInsecure+"]")
+	cmd.Flags().StringVar(&proxyClientCA, "proxy-client-ca", env.Get[string](EnvProxyClientCA), "proxy tls client certificate authority [$"+EnvProxyClientCA+"]")
+	cmd.Flags().StringVar(&proxyUser, "proxy-user", env.GetDefault(EnvProxyUser, proxyUser), "proxy registry user [$"+EnvProxyUser+"]")
+	cmd.Flags().StringVar(&proxyPassword, "proxy-password", env.GetDefault(EnvProxyPassword, proxyPassword), "proxy registry password [$"+EnvProxyPassword+"]")
 
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
@@ -191,7 +236,7 @@ func run(ctx context.Context, repo string, opts ...storage.Option) error {
 	router.Path("/_/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	if err := repository.Init(ctx, router, domain, repo); err != nil {
+	if err := api.Init(ctx, router, domain, repo); err != nil {
 		return err
 	}
 	if err := packages.Init(ctx, router, domain, repo); err != nil {

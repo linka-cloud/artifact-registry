@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.linka.cloud/printer"
 
-	repository2 "go.linka.cloud/artifact-registry/pkg/repository"
+	"go.linka.cloud/artifact-registry/pkg/api"
 	"go.linka.cloud/artifact-registry/pkg/slices"
 )
 
@@ -57,7 +57,7 @@ var (
 				}
 				return errors.New(string(b))
 			}
-			var repos []repository2.Repository
+			var repos []api.Repository
 			if err := json.NewDecoder(res.Body).Decode(&repos); err != nil {
 				return err
 			}
@@ -71,7 +71,7 @@ var (
 				MetadataFiles int64      `json:"metadataFiles" print:"METADATA FILES"`
 				MetadataSize  int64      `json:"metadataSize" print:"METADATA SIZE"`
 			}
-			out := slices.Map(repos, func(v repository2.Repository) Repo {
+			out := slices.Map(repos, func(v api.Repository) Repo {
 				return Repo{
 					Image:         v.Name + ":" + v.Type,
 					Type:          v.Type,

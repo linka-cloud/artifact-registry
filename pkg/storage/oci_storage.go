@@ -26,7 +26,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -34,22 +33,17 @@ import (
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/errdef"
-	"oras.land/oras-go/v2/registry/remote"
 
-	cache2 "go.linka.cloud/artifact-registry/pkg/cache"
+	"go.linka.cloud/artifact-registry/pkg/cache"
 	"go.linka.cloud/artifact-registry/pkg/crypt/aes"
+	"go.linka.cloud/artifact-registry/pkg/registry"
 	"go.linka.cloud/artifact-registry/pkg/slices"
-)
-
-var (
-	cache = cache2.New()
-	ttl   = 5 * time.Minute
 )
 
 type storage struct {
 	opts  options
 	name  string
-	rrepo *remote.Repository
+	rrepo registry.Repository
 	ref   string
 	repo  Repository
 	key   string
@@ -64,14 +58,14 @@ func NewStorage(ctx context.Context, name string, repo Repository) (Storage, err
 		}
 		name = opts.repo
 	}
-	name = opts.host + "/" + strings.TrimSuffix(name, "/")
-	ref := name + ":" + repo.Name()
-	tmp, err := os.MkdirTemp(os.TempDir(), "lk-artifact-registry-"+repo.Name())
+	rname := opts.host + "/" + strings.TrimSuffix(name, "/")
+	ref := rname + ":" + repo.Name()
+	tmp, err := os.MkdirTemp(os.TempDir(), fmt.Sprintf("lk-artifact-registry-%s-", repo.Name()))
 	if err != nil {
 		return nil, err
 	}
 	r := &storage{
-		name: name,
+		name: rname,
 		repo: repo,
 		ref:  ref,
 		tmp:  tmp,
@@ -82,7 +76,7 @@ func NewStorage(ctx context.Context, name string, repo Repository) (Storage, err
 			r.Close()
 		}
 	}()
-	r.rrepo, err = r.newRepository(ctx, name)
+	r.rrepo, err = opts.NewRepository(ctx, rname)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +172,7 @@ func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 		if err := store.Tag(ctx, img, img.Digest.String()); err != nil {
 			return err
 		}
-		rrepo, err := s.newRepository(ctx, repo)
+		rrepo, err := s.opts.NewRepository(ctx, repo)
 		if err != nil {
 			return err
 		}
@@ -219,7 +213,7 @@ func (s *storage) Delete(ctx context.Context, name string) error {
 	if s.opts.artifactTags {
 		repo := s.artifactName(pkg)
 		ref := strings.NewReplacer("~", "-", "+", "-").Replace(repo + ":" + defaults(pkg.Version(), "latest"))
-		rrepo, err := s.newRepository(ctx, repo)
+		rrepo, err := s.opts.NewRepository(ctx, repo)
 		if err != nil {
 			return err
 		}
@@ -325,15 +319,6 @@ func (s *storage) Close() error {
 	return os.RemoveAll(s.tmp)
 }
 
-func (s *storage) newRepository(ctx context.Context, name string) (*remote.Repository, error) {
-	rrepo, err := remote.NewRepository(name)
-	if err != nil {
-		return nil, err
-	}
-	s.opts.SetClient(ctx, rrepo)
-	return rrepo, nil
-}
-
 func (s *storage) updateIndex(ctx context.Context, store *file.Store, m ocispec.Manifest, pkgs []Artifact, layers []ocispec.Descriptor) error {
 	pvn, pbn := s.repo.KeyNames()
 	for i := range m.Layers {
@@ -356,8 +341,25 @@ func (s *storage) updateIndex(ctx context.Context, store *file.Store, m ocispec.
 	if err != nil {
 		return err
 	}
+	i := make(map[string]string)
+	for _, v := range append(pkgs, files...) {
+		i[v.Path()] = v.Digest().String()
+	}
+	ib, err := json.Marshal(i)
+	if err != nil {
+		return fmt.Errorf("failed to marshal packages: %w", err)
+	}
+	cfg := ocispec.Descriptor{
+		MediaType: s.MediaTypeIndexConfig(),
+		Digest:    digest.FromBytes(ib),
+		Size:      int64(len(ib)),
+	}
+	if err := store.Push(ctx, cfg, bytes.NewReader(ib)); err != nil {
+		return err
+	}
 	opts := oras.PackManifestOptions{
-		Layers: layers,
+		ConfigDescriptor: &cfg,
+		Layers:           layers,
 	}
 	for _, v := range files {
 		l := ocispec.Descriptor{
@@ -380,7 +382,6 @@ func (s *storage) updateIndex(ctx context.Context, store *file.Store, m ocispec.
 	if err := store.Tag(ctx, img, img.Digest.String()); err != nil {
 		return err
 	}
-	// TODO(adphi): update only manifest
 	img, err = oras.Copy(ctx, store, img.Digest.String(), s.rrepo, s.ref, copts(s.ref))
 	if err != nil {
 		return err
@@ -445,7 +446,7 @@ func (s *storage) manifest(ctx context.Context) (m ocispec.Manifest, err error) 
 	}
 	if v, ok := cache.Get(desc.Digest.String()); ok {
 		// reset ttl
-		cache.Set(desc.Digest.String(), v, cache2.WithTTL(ttl))
+		cache.Set(desc.Digest.String(), v, cache.WithTTL(cache.DefaultTTL))
 		return v.(ocispec.Manifest), nil
 	}
 	logger.C(ctx).Infof("retrieve manifest %s", desc.Digest.String())
@@ -461,7 +462,7 @@ func (s *storage) manifest(ctx context.Context) (m ocispec.Manifest, err error) 
 	if m.ArtifactType != s.ArtefactTypeRegistry() {
 		return m, fmt.Errorf("%w: %s", ErrInvalidArtifactType, m.MediaType)
 	}
-	cache.Set(desc.Digest.String(), m, cache2.WithTTL(ttl))
+	cache.Set(desc.Digest.String(), m, cache.WithTTL(cache.DefaultTTL))
 	return m, nil
 }
 
@@ -511,6 +512,9 @@ func (s *storage) artifactName(a Artifact) string {
 
 func (s *storage) ArtefactTypeRegistry() string {
 	return "application/vnd.lk.registry+" + s.repo.Name()
+}
+func (s *storage) MediaTypeIndexConfig() string {
+	return "application/vnd.lk.registry.index.config.v1." + s.repo.Name() + "+json"
 }
 func (s *storage) MediaTypeArtifactConfig() string {
 	return "application/vnd.lk.registry.config.v1." + s.repo.Name() + "+" + s.repo.Codec().Name()

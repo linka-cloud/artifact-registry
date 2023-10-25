@@ -25,15 +25,6 @@ type item struct {
 	exp   time.Time
 }
 
-func Get[T any](c Cache, key string) (z T, ok bool) {
-	v, ok := c.Get(key)
-	if !ok {
-		return z, false
-	}
-	z, ok = v.(T)
-	return
-}
-
 type Option func(*item)
 
 func WithTTL(d time.Duration) Option {

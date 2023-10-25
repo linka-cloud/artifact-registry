@@ -20,7 +20,7 @@ import (
 	"github.com/gorilla/mux"
 	"go.linka.cloud/grpc-toolkit/logger"
 
-	"go.linka.cloud/artifact-registry/pkg/storage/auth"
+	"go.linka.cloud/artifact-registry/pkg/auth"
 )
 
 type MiddlewareFunc = func(repoVar string) mux.MiddlewareFunc
