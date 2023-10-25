@@ -32,10 +32,12 @@ import (
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
 
+const Name = "apk"
+
 var _ packages.Provider = (*provider)(nil)
 
 func init() {
-	packages.Register("apk", newProvider)
+	packages.Register(Name, newProvider)
 }
 
 func newProvider(_ context.Context) (packages.Provider, error) {

@@ -38,13 +38,13 @@ func newPkgSetupCmd(typ string) *cobra.Command {
 	)
 	var prefix string
 	switch strings.Split(registry, ".")[0] {
-	case "apk", "deb", "rpm", ".helm":
+	case apk.Name, deb.Name, rpm.Name, helm.Name:
 		prefix = "/"
 	default:
 		prefix = "/" + typ + "/"
 	}
 	switch typ {
-	case "apk":
+	case apk.Name:
 		use = fmt.Sprintf("setup [repository] [branch] [apk-repository]")
 		args = 3
 		setup = func(ctx context.Context, scheme, name string, args []string) error {
@@ -58,7 +58,7 @@ func newPkgSetupCmd(typ string) *cobra.Command {
 				Repository: args[2],
 			}, force)
 		}
-	case "deb":
+	case deb.Name:
 		use = fmt.Sprintf("setup [repository] [distribution] [component]")
 		args = 3
 		setup = func(ctx context.Context, scheme, name string, args []string) error {
@@ -73,7 +73,7 @@ func newPkgSetupCmd(typ string) *cobra.Command {
 				Component: args[2],
 			}, force)
 		}
-	case "rpm":
+	case rpm.Name:
 		use = fmt.Sprintf("setup [repository]")
 		args = 1
 		setup = func(ctx context.Context, scheme, name string, args []string) error {
@@ -85,7 +85,7 @@ func newPkgSetupCmd(typ string) *cobra.Command {
 				Path:     prefix + repository,
 			}, force)
 		}
-	case "helm":
+	case helm.Name:
 		use = fmt.Sprintf("setup [repository]")
 		args = 1
 		setup = func(ctx context.Context, scheme, name string, args []string) error {

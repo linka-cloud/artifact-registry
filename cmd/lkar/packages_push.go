@@ -23,6 +23,9 @@ import (
 	"path"
 
 	"github.com/spf13/cobra"
+
+	"go.linka.cloud/artifact-registry/pkg/packages/apk"
+	"go.linka.cloud/artifact-registry/pkg/packages/deb"
 )
 
 func newPkgPushCmd(typ string) *cobra.Command {
@@ -32,13 +35,13 @@ func newPkgPushCmd(typ string) *cobra.Command {
 		return "/push"
 	}
 	switch typ {
-	case "apk":
+	case apk.Name:
 		use = fmt.Sprintf("push [repository] [branch] [apk-repository] [path]")
 		index = 3
 		upload = func(args []string) string {
 			return path.Join("/", args[1], args[2], "push")
 		}
-	case "deb":
+	case deb.Name:
 		use = fmt.Sprintf("push [repository] [distribution] [component] [path]")
 		index = 3
 		upload = func(args []string) string {

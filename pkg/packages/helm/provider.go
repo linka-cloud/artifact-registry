@@ -32,6 +32,8 @@ import (
 //go:embed setup.sh
 var script string
 
+const Name = "helm"
+
 var (
 	scriptTemplate = template.Must(template.New("setup.sh").Parse(script))
 )
@@ -39,7 +41,7 @@ var (
 var _ packages.Provider = (*provider)(nil)
 
 func init() {
-	packages.Register("helm", newProvider)
+	packages.Register(Name, newProvider)
 }
 
 func newProvider(_ context.Context) (packages.Provider, error) {

@@ -28,10 +28,12 @@ import (
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
 
+const Name = "rpm"
+
 var _ packages.Provider = (*provider)(nil)
 
 func init() {
-	packages.Register("rpm", newProvider)
+	packages.Register(Name, newProvider)
 }
 
 func newProvider(_ context.Context) (packages.Provider, error) {

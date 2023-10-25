@@ -68,25 +68,25 @@ func newPkgListCmd(typ string) *cobra.Command {
 			}
 			var pkgs []storage.Artifact
 			switch typ {
-			case "apk":
+			case apk.Name:
 				var p []*apk.Package
 				if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
 					return err
 				}
 				pkgs = storage.AsArtifact(p)
-			case "deb":
+			case deb.Name:
 				var p []*deb.Package
 				if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
 					return err
 				}
 				pkgs = storage.AsArtifact(p)
-			case "rpm":
+			case rpm.Name:
 				var p []*rpm.Package
 				if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
 					return err
 				}
 				pkgs = storage.AsArtifact(p)
-			case "helm":
+			case helm.Name:
 				var p []*helm.Package
 				if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
 					return err
