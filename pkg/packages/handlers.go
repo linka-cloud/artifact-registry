@@ -38,6 +38,10 @@ func Push(fn ArtifactFactory) HandlerFunc {
 			}
 			defer reader.Close()
 			s := storage.FromContext(ctx)
+			if err := s.Init(ctx); err != nil {
+				storage.Error(w, err)
+				return
+			}
 			pkg, err := fn(r, reader, size, s.Key())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)

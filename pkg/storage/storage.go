@@ -68,6 +68,7 @@ type Repository interface {
 }
 
 type Storage interface {
+	Init(ctx context.Context) error
 	Stat(ctx context.Context, file string) (ArtifactInfo, error)
 	Open(ctx context.Context, name string) (io.ReadCloser, error)
 	Write(ctx context.Context, a Artifact) error

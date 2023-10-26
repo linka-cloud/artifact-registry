@@ -119,7 +119,7 @@ func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 	log := logger.C(ctx).WithField("artifact", pkg.Name())
 	ctx = logger.Set(ctx, log)
 
-	if err := s.init(ctx); err != nil {
+	if err := s.Init(ctx); err != nil {
 		return err
 	}
 
@@ -390,7 +390,7 @@ func (s *storage) updateIndex(ctx context.Context, store *file.Store, m ocispec.
 	return nil
 }
 
-func (s *storage) init(ctx context.Context) error {
+func (s *storage) Init(ctx context.Context) error {
 	// if we have a key, we are already initialized
 	if s.key != "" {
 		return nil
