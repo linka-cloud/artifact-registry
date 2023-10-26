@@ -214,16 +214,20 @@ func listImageRepositories(ctx context.Context, reg registry.Registry, name stri
 		}
 		l := make(map[string]struct{})
 		for _, v := range m.Layers {
-			if _, ok := l[v.Digest.String()]; ok {
-				continue
-			}
+			_, seen := l[v.Digest.String()]
 			l[v.Digest.String()] = struct{}{}
-			r.Size += v.Size
+			if !seen {
+				r.Size += v.Size
+			}
 			if v.MediaType == "application/vnd.lk.registry.layer.v1."+typ {
-				r.Packages.Size += v.Size
+				if !seen {
+					r.Packages.Size += v.Size
+				}
 				r.Packages.Count++
 			} else {
-				r.Metadata.Size += v.Size
+				if !seen {
+					r.Metadata.Size += v.Size
+				}
 				r.Metadata.Count++
 			}
 		}
