@@ -97,9 +97,9 @@ func (r *repo) Index(ctx context.Context, priv string, as ...storage.Artifact) (
 		if err != nil {
 			return nil, err
 		}
-		return append(out, as2...), nil
+		out = append(out, as2...)
 	}
-	return
+	return out, nil
 }
 
 // https://wiki.debian.org/DebianRepository/Format#A.22Packages.22_Indices
