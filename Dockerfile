@@ -33,23 +33,26 @@ COPY go.mod go.sum ./
 
 RUN go mod download
 
+COPY .git ./.git
 COPY cmd ./cmd
 COPY pkg ./pkg
 COPY version.go ./version.go
 COPY ui/ui.go ./ui/ui.go
+COPY Makefile ./Makefile
 
 COPY --from=react-builder /app/build ./ui/build
 
 ARG VERSION=dev
 
-RUN go build -trimpath -ldflags="-s -w -X go.linka.cloud/artifact-registry.Version=${VERSION} -X go.linka.cloud/artifact-registry.BuildDate=$(date -Iseconds)" -o lkard ./cmd/lkard
-RUN go build -trimpath -ldflags="-s -w -X go.linka.cloud/artifact-registry.Version=${VERSION} -X go.linka.cloud/artifact-registry.BuildDate=$(date -Iseconds)" -o lkar ./cmd/lkar
+RUN apk add --no-cache git make
+
+RUN make build-go
 
 FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates
 
-COPY --from=go-builder /app/lkard /usr/local/bin/lkard
-COPY --from=go-builder /app/lkar /usr/local/bin/lkar
+COPY --from=go-builder /app/bin/lkard /usr/local/bin/lkard
+COPY --from=go-builder /app/bin/lkar /usr/local/bin/lkar
 
 ENTRYPOINT ["/usr/local/bin/lkard"]

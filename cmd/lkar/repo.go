@@ -29,11 +29,12 @@ var (
 	repoGroup = &cobra.Group{ID: "1_repositories", Title: "Repository Commands:"}
 
 	repoCmd = &cobra.Command{
-		Use:     "repositories [registry]",
-		Short:   "List repositories in the registry",
-		Aliases: []string{"repo", "repos"},
-		Args:    cobra.ExactArgs(1),
-		GroupID: repoGroup.ID,
+		Use:               "repositories [registry]",
+		Short:             "List repositories in the registry",
+		Aliases:           []string{"repo", "repos"},
+		Args:              cobra.ExactArgs(1),
+		GroupID:           repoGroup.ID,
+		PersistentPreRunE: setup,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := api.NewClient(registry, repository, opts...)
 			if err != nil {

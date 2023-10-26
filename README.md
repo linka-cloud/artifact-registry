@@ -115,7 +115,7 @@ helm upgrade \
     linka-cloud/artifact-registry
 ```
 
-See the [values.yaml](./helm/artifact-registry/values.yaml) for the available configuration options.
+See the [Chart's README](./helm/artifact-registry/README.md) for the available configuration options.
 
 
 <!--- ### Using the registry --->

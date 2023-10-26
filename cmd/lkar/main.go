@@ -54,11 +54,10 @@ var (
 	debug bool
 
 	rootCmd = &cobra.Command{
-		Use:               "lkar",
-		Short:             "An OCI based Artifact Registry",
-		SilenceUsage:      true,
-		PersistentPreRunE: setup,
-		Version:           artifact_registry.Version,
+		Use:          "lkar",
+		Short:        "An OCI based Artifact Registry",
+		SilenceUsage: true,
+		Version:      artifact_registry.Version,
 	}
 )
 

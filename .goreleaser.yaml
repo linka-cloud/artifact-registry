@@ -1,0 +1,196 @@
+# Copyright 2023 Linka Cloud  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+before:
+  hooks:
+  - go mod tidy
+  - make completions
+
+builds:
+- id: lkar
+  binary: lkar
+  main: ./cmd/lkar
+  flags:
+  - -trimpath
+  ldflags:
+  - -s -w -X "go.linka.cloud/artifact-registry.Repo={{.Env.REPO}}" -X "go.linka.cloud/artifact-registry.Version={{.Env.VERSION}}" -X "go.linka.cloud/artifact-registry.Commit={{.Commit}}" -X "go.linka.cloud/artifact-registry.Date={{.CommitDate}}"
+  env:
+  - CGO_ENABLED=0
+  goos:
+  - linux
+  - windows
+  - darwin
+  goarch:
+  - amd64
+  - arm64
+- id: lkard
+  binary: lkard
+  main: ./cmd/lkard
+  flags:
+  - -trimpath
+  ldflags:
+  - -s -w -X "go.linka.cloud/artifact-registry.Repo={{.Env.REPO}}" -X "go.linka.cloud/artifact-registry.Version={{.Env.VERSION}}" -X "go.linka.cloud/artifact-registry.Commit={{.Commit}}" -X "go.linka.cloud/artifact-registry.Date={{.CommitDate}}"
+  env:
+  - CGO_ENABLED=0
+  goos:
+  - linux
+  - windows
+  - darwin
+  goarch:
+  - amd64
+  - arm64
+
+release:
+  prerelease: auto
+  extra_files:
+  - glob: LICENCE
+  - glob: LICENCE-GITEA
+  - glob: pgp.pub
+
+archives:
+- id: lkar
+  format: tar.gz
+  # this name template makes the OS and Arch compatible with the results of `uname`.
+  name_template: >-
+    lkar_
+    {{- title .Os }}_
+    {{- if eq .Arch "amd64" }}x86_64
+    {{- else if eq .Arch "386" }}i386
+    {{- else if eq .Arch "arm64" }}aarch64
+    {{- else }}{{ .Arch }}{{ end }}
+    {{- if .Arm }}v{{ .Arm }}{{ end }}
+  # use zip for windows archives
+  format_overrides:
+  - goos: windows
+    format: zip
+- id: lkard
+  format: tar.gz
+  # this name template makes the OS and Arch compatible with the results of `uname`.
+  name_template: >-
+    lkard_
+    {{- title .Os }}_
+    {{- if eq .Arch "amd64" }}x86_64
+    {{- else if eq .Arch "386" }}i386
+    {{- else if eq .Arch "arm64" }}aarch64
+    {{- else }}{{ .Arch }}{{ end }}
+    {{- if .Arm }}v{{ .Arm }}{{ end }}
+  # use zip for windows archives
+  format_overrides:
+  - goos: windows
+    format: zip
+
+nfpms:
+- id: lkar
+  package_name: lkar
+  builds:
+  - lkar
+  formats:
+  - apk
+  - deb
+  - rpm
+  homepage: https://github.com/{{ .Env.REPO }}
+  license: Apache 2.0 and MIT
+  vendor: Linka Cloud
+  maintainer: Linka Cloud <support@linka.cloud>
+  description: |-
+    Distribute your artifacts to your end users without any additional administration or maintenance costs.
+
+brews:
+- ids:
+  - lkar
+  name: lkar
+  repository:
+    owner: linka-cloud
+    name: homebrew-tap
+  folder: Formula
+  homepage: https://github.com/{{ .Env.REPO }}
+  description: Distribute your artifacts to your end users without any additional administration or maintenance costs.
+  license: Apache 2.0 and MIT
+  test: |
+    system "#{bin}/lkar --version"
+  install: |-
+    bin.install "lkar"
+    bash_completion.install "completions/lkar.bash" => "lkar"
+    zsh_completion.install "completions/lkar.zsh" => "_lkar"
+    fish_completion.install "completions/lkar.fish"
+
+# requires UPLOAD_LKAR_USERNAME and UPLOAD_LKAR_SECRET env vars
+uploads:
+- name: lkar
+  ids:
+  - lkar
+  exts:
+  - rpm
+  custom_artifact_name: true
+  target: https://rpm.linka.cloud/push
+- name: lkar
+  ids:
+  - lkar
+  exts:
+  - apk
+  custom_artifact_name: true
+  target: https://apk.linka.cloud/v3.17/main/push
+- name: lkar
+  ids:
+  - lkar
+  exts:
+  - apk
+  custom_artifact_name: true
+  target: https://apk.linka.cloud/v3.18/main/push
+- name: lkar
+  ids:
+  - lkar
+  exts:
+  - deb
+  custom_artifact_name: true
+  target: https://deb.linka.cloud/pool/jammy/main/push
+- name: lkar
+  ids:
+  - lkar
+  exts:
+  - deb
+  custom_artifact_name: true
+  target: https://deb.linka.cloud/pool/focal/main/push
+- name: lkar
+  ids:
+  - lkar
+  exts:
+  - deb
+  custom_artifact_name: true
+  target: https://deb.linka.cloud/pool/buster/main/push
+- name: lkar
+  ids:
+  - lkar
+  exts:
+  - deb
+  custom_artifact_name: true
+  target: https://deb.linka.cloud/pool/bullseye/main/push
+checksum:
+  name_template: 'checksums.txt'
+signs:
+- artifacts: all
+  stdin: '{{ .Env.GPG_PASSWORD }}'
+snapshot:
+  name_template: "{{ .Env.VERSION }}"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - "^docs:"
+    - "^test:"
+    - "^tests:"
+    - '^actions:'
+    - '^Makefile:'
+    - '^chore:'
+    - '^goreleaser:'

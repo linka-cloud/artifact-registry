@@ -22,7 +22,7 @@ REGISTRY=registry.example.org
 helm upgrade --install --set config.backend.host=$REGISTRY artifact-registry linka-cloud/artifact-registry
 ```
 
-# Default values for artifact-registry.
+# Default values for lk-artifact-registry.
 
 For more information please refer to the [values.yaml](values.yaml) file.
 
