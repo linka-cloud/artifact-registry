@@ -36,9 +36,13 @@ import (
 
 	"go.linka.cloud/artifact-registry/pkg/cache"
 	"go.linka.cloud/artifact-registry/pkg/crypt/aes"
+	"go.linka.cloud/artifact-registry/pkg/mutex"
 	"go.linka.cloud/artifact-registry/pkg/registry"
 	"go.linka.cloud/artifact-registry/pkg/slices"
 )
+
+// global mutex to prevent concurrent access to the same storage
+var lock = mutex.New()
 
 type storage struct {
 	opts  options
@@ -91,6 +95,8 @@ func NewStorage(ctx context.Context, name string, repo Repository) (Storage, err
 
 func (s *storage) Stat(ctx context.Context, file string) (ArtifactInfo, error) {
 	logger.C(ctx).Infof("stat %s", file)
+	s.rlock(ctx)
+	defer s.runlock(ctx)
 	desc, err := s.find(ctx, file)
 	if err != nil {
 		return nil, err
@@ -100,6 +106,9 @@ func (s *storage) Stat(ctx context.Context, file string) (ArtifactInfo, error) {
 }
 
 func (s *storage) Open(ctx context.Context, path string) (io.ReadCloser, error) {
+	logger.C(ctx).Infof("opening %s", path)
+	s.rlock(ctx)
+	defer s.runlock(ctx)
 	if k, _ := s.repo.KeyNames(); path == k || path == "" {
 		return nil, fmt.Errorf("%s: %w", path, os.ErrNotExist)
 	}
@@ -122,6 +131,9 @@ func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 	if err := s.Init(ctx); err != nil {
 		return err
 	}
+
+	s.lock(ctx)
+	defer s.unlock(ctx)
 
 	log.Infof("uploading %s", pkg.Path())
 	if prv, pb := s.repo.KeyNames(); pkg.Path() == prv || pkg.Path() == pb {
@@ -200,6 +212,8 @@ func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 
 func (s *storage) Delete(ctx context.Context, name string) error {
 	logger.C(ctx).Infof("deleting %s", name)
+	s.lock(ctx)
+	defer s.unlock(ctx)
 	if prv, pb := s.repo.KeyNames(); name == prv || name == pb {
 		return fmt.Errorf("%s: %w", name, os.ErrNotExist)
 	}
@@ -254,6 +268,8 @@ func (s *storage) Delete(ctx context.Context, name string) error {
 
 func (s *storage) Artifacts(ctx context.Context) ([]Artifact, error) {
 	logger.C(ctx).Infof("listing artifacts")
+	s.rlock(ctx)
+	defer s.runlock(ctx)
 	m, err := s.manifest(ctx)
 	if err != nil {
 		return nil, err
@@ -278,6 +294,8 @@ func (s *storage) ServeFile(w http.ResponseWriter, r *http.Request, path string)
 	}
 	ctx := r.Context()
 
+	s.rlock(ctx)
+	defer s.runlock(ctx)
 	logger.C(ctx).Infof("serving %s", path)
 	desc, err := s.find(ctx, path)
 	if err != nil {
@@ -301,13 +319,21 @@ func (s *storage) ServeFile(w http.ResponseWriter, r *http.Request, path string)
 }
 
 func (s *storage) Size(ctx context.Context) (int64, error) {
+	logger.C(ctx).Infof("computing storage size")
+	s.rlock(ctx)
+	defer s.runlock(ctx)
 	m, err := s.manifest(ctx)
 	if err != nil {
 		return 0, err
 	}
 	var size int64
+	l := make(map[string]struct{})
 	for _, v := range m.Layers {
+		if _, ok := l[v.Digest.String()]; ok {
+			continue
+		}
 		size += v.Size
+		l[v.Digest.String()] = struct{}{}
 	}
 	return size, nil
 }
@@ -393,6 +419,8 @@ func (s *storage) updateIndex(ctx context.Context, store *file.Store, m ocispec.
 }
 
 func (s *storage) Init(ctx context.Context) error {
+	s.lock(ctx)
+	defer s.unlock(ctx)
 	// if we have a key, we are already initialized
 	if s.key != "" {
 		return nil
@@ -507,6 +535,22 @@ func (s *storage) find(ctx context.Context, file string) (ocispec.Descriptor, er
 		}
 	}
 	return ocispec.Descriptor{}, fmt.Errorf("%s: %w", file, os.ErrNotExist)
+}
+
+func (s *storage) lock(ctx context.Context) {
+	lock.Lock(ctx, s.ref)
+}
+
+func (s *storage) unlock(ctx context.Context) {
+	lock.Unlock(ctx, s.ref)
+}
+
+func (s *storage) rlock(ctx context.Context) {
+	lock.RLock(ctx, s.ref)
+}
+
+func (s *storage) runlock(ctx context.Context) {
+	lock.RUnlock(ctx, s.ref)
 }
 
 func (s *storage) artifactName(a Artifact) string {
