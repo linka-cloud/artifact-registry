@@ -58,6 +58,7 @@ var (
 		Short:             "An OCI based Artifact Registry",
 		SilenceUsage:      true,
 		PersistentPreRunE: setup,
+		Version:           artifact_registry.Version,
 	}
 )
 

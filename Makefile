@@ -1,5 +1,7 @@
 MODULE = go.linka.cloud/artifact-registry
 
+GITHUB_REPO = linka-cloud/artifact-registry
+
 PROJECT = artifact-registry
 REPOSITORY = linkacloud
 
@@ -22,7 +24,10 @@ install: build-ui
 
 DOCKER_BUILDX_ARGS := build --pull --load --build-arg VERSION=$(VERSION)
 
-docker: docker-build docker-push
+docker: docker-build docker-scan docker-push
+
+docker-scan:
+	@trivy image --severity "HIGH,CRITICAL" --exit-code 100 $(REPOSITORY)/$(PROJECT):$(VERSION)
 
 .PHONY: docker-build
 docker-build:
@@ -39,8 +44,33 @@ ifneq ($(TAG),)
 	@docker image push $(REPOSITORY)/$(PROJECT):latest
 endif
 
+.PHONY: completions
+completions:
+	@rm -rf completions
+	@mkdir -p completions
+	@for shell in bash zsh fish powershell; do \
+		go run ./cmd/lkar completion $$shell > completions/lkar.$$shell; \
+	done
+
 .PHONY: cli-docs
 cli-docs:
 	@rm -rf ./docs/{lkar,lkard}
 	@go run -tags=docs ./cmd/lkar docs ./docs/lkar
 	@go run -tags=docs ./cmd/lkard docs ./docs/lkard
+
+PHONY: build-snapshot
+build-snapshot:  build-ui
+	@VERSION=$(VERSION) REPO=$(GITHUB_REPO) goreleaser build --snapshot --clean --parallelism 8
+
+.PHONY: release-snapshot
+release-snapshot: build-ui
+	@VERSION=$(VERSION) REPO=$(GITHUB_REPO) goreleaser release --snapshot --clean --skip=sign,publish,announce --parallelism 8
+
+.PHONY: build
+build: build-ui
+	@VERSION=$(VERSION) REPO=$(GITHUB_REPO) goreleaser build --clean --parallelism 8
+
+.PHONY: release
+release: build-ui
+	@VERSION=$(VERSION) REPO=$(GITHUB_REPO) goreleaser release --clean --parallelism 8
+

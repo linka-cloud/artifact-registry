@@ -87,6 +87,7 @@ var (
 		Short:        "An OCI based Artifact Registry",
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
+		Version:      artifact_registry.Version,
 		Run: func(cmd *cobra.Command, args []string) {
 			if aesKey == "" {
 				logrus.Fatalf("environment variable $%s must be set", EnvKey)
@@ -156,9 +157,13 @@ var (
 		},
 	}
 	cmdVersion = &cobra.Command{
-		Use: "version",
+		Use:   "version",
+		Short: "Print the version informations and exit",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("%s (%s)\n", artifact_registry.Version, artifact_registry.BuildDate)
+			fmt.Printf("Version: %s\n", artifact_registry.Version)
+			fmt.Printf("Commit: %s\n", artifact_registry.Commit)
+			fmt.Printf("Date: %s\n", artifact_registry.Date)
+			fmt.Printf("Repo: https://github.com/%s\n", artifact_registry.Repo)
 		},
 	}
 )
