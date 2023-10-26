@@ -18,6 +18,8 @@ import (
 	"io"
 	"net/http"
 
+	"go.linka.cloud/grpc-toolkit/logger"
+
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
 
@@ -37,17 +39,20 @@ func Push(fn ArtifactFactory) HandlerFunc {
 				reader, size = r.Body, r.ContentLength
 			}
 			defer reader.Close()
+			logger.C(ctx).Debugf("ensuring storage is initialized")
 			s := storage.FromContext(ctx)
 			if err := s.Init(ctx); err != nil {
 				storage.Error(w, err)
 				return
 			}
+			logger.C(ctx).Debugf("parsing artifact")
 			pkg, err := fn(r, reader, size, s.Key())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			defer pkg.Close()
+			logger.C(ctx).WithFields("name", pkg.Name(), "filepath", pkg.Path(), "arch", pkg.Arch()).Infof("uploading artifact")
 			if err := s.Write(ctx, pkg); err != nil {
 				storage.Error(w, err)
 				return

@@ -169,6 +169,7 @@ func (s *storage) Write(ctx context.Context, pkg Artifact) error {
 	if s.opts.artifactTags {
 		repo := s.artifactName(pkg)
 		ref := strings.NewReplacer("~", "-", "+", "-").Replace(repo + ":" + defaults(pkg.Version(), "latest"))
+		log.Infof("tagging artifact %s", ref)
 		if err := store.Tag(ctx, img, img.Digest.String()); err != nil {
 			return err
 		}
@@ -337,6 +338,7 @@ func (s *storage) updateIndex(ctx context.Context, store *file.Store, m ocispec.
 		pkgs = append(pkgs, p)
 		layers = append(layers, v)
 	}
+	logger.C(ctx).Infof("updating index")
 	files, err := s.repo.Index(ctx, s.key, pkgs...)
 	if err != nil {
 		return err
@@ -395,6 +397,7 @@ func (s *storage) Init(ctx context.Context) error {
 	if s.key != "" {
 		return nil
 	}
+	logger.C(ctx).Infof("initializing %s", s.ref)
 	store, err := file.New(s.tmp)
 	if err != nil {
 		return err
