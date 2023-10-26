@@ -40,13 +40,13 @@ type Package struct {
 	VersionMetadata VersionMetadata `json:"versionMetadata"`
 	FileMetadata    FileMetadata    `json:"fileMetadata"`
 
-	PkgSize  int64  `json:"size"`
-	Branch   string `json:"branch"`
-	Repo     string `json:"repo"`
-	FilePath string `json:"filePath"`
+	PkgSize   int64  `json:"size"`
+	PkgDigest string `json:"digest"`
+	Branch    string `json:"branch"`
+	Repo      string `json:"repo"`
+	FilePath  string `json:"filePath"`
 
 	reader io.ReadCloser
-	digest digest.Digest
 }
 
 func (p *Package) Read(b []byte) (n int, err error) {
@@ -77,7 +77,7 @@ func (p *Package) Size() int64 {
 }
 
 func (p *Package) Digest() digest.Digest {
-	return p.digest
+	return digest.NewDigestFromEncoded(digest.SHA256, p.PkgDigest)
 }
 
 func (p *Package) Close() error {
@@ -160,7 +160,7 @@ func NewPackage(r io.Reader, branch, repository string, size int64) (*Package, e
 				// p.PkgSize = int64(buff.Len())
 				_, _, sha256, _ := reader.Sums()
 				p.reader = reader
-				p.digest = digest.NewDigestFromEncoded(digest.SHA256, hex.EncodeToString(sha256))
+				p.PkgDigest = hex.EncodeToString(sha256)
 				p.PkgSize = size
 				p.FilePath = fmt.Sprintf("%s/%s/%s/%s-%s.apk", p.Branch, p.Repo, p.FileMetadata.Architecture, p.PkgName, p.PkgVersion)
 				_, err = reader.Seek(0, io.SeekStart)

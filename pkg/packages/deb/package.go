@@ -61,7 +61,6 @@ type Package struct {
 	SHA512 string `json:"sha512"`
 
 	reader io.ReadCloser
-	digest digest.Digest
 }
 
 func (p *Package) Read(b []byte) (n int, err error) {
@@ -99,7 +98,7 @@ func (p *Package) Size() int64 {
 }
 
 func (p *Package) Digest() digest.Digest {
-	return p.digest
+	return digest.NewDigestFromEncoded(digest.SHA256, p.SHA256)
 }
 
 type Metadata struct {
@@ -130,7 +129,6 @@ func NewPackage(r io.Reader, distribution, component string, size int64) (*Packa
 	pkg.SHA1 = hex.EncodeToString(sha1)
 	pkg.SHA256 = hex.EncodeToString(sha256)
 	pkg.SHA512 = hex.EncodeToString(sha512)
-	pkg.digest = digest.NewDigestFromEncoded(digest.SHA256, pkg.SHA256)
 	_, err = reader.Seek(0, io.SeekStart)
 	return pkg, err
 }

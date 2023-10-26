@@ -42,7 +42,6 @@ type Package struct {
 	FilePath        string           `json:"filePath"`
 
 	reader io.ReadCloser
-	digest digest.Digest
 }
 
 func (p *Package) Name() string {
@@ -65,7 +64,7 @@ func (p *Package) Read(b []byte) (int, error) {
 }
 
 func (p *Package) Digest() digest.Digest {
-	return p.digest
+	return digest.NewDigestFromEncoded(digest.SHA256, p.HashSHA256)
 }
 
 func (p *Package) Path() string {
@@ -166,13 +165,6 @@ func NewPackage(r io.Reader, size int64, key string) (*Package, error) {
 	_, _, sha256, _ := reader.Sums()
 	pkg.HashSHA256 = hex.EncodeToString(sha256)
 	// create image with package as config and blob as layer
-	if _, err := reader.Seek(0, 0); err != nil {
-		return nil, err
-	}
-	pkg.digest, err = digest.FromReader(reader)
-	if err != nil {
-		return nil, err
-	}
 	if _, err := reader.Seek(0, 0); err != nil {
 		return nil, err
 	}
