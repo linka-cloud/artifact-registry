@@ -20,10 +20,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"text/template"
+
+	"github.com/spf13/afero"
 
 	"go.linka.cloud/artifact-registry/pkg/packages"
 )
@@ -43,47 +45,39 @@ type SetupArgs struct {
 	Repository string
 }
 
-func Setup(ctx context.Context, args SetupArgs, force bool) error {
-	username := args.User
-	password := args.Password
-	scheme := args.Scheme
-	repoHost := args.Host
-	repoPath := args.Path
-	branch := args.Branch
-	repository := args.Repository
+var fs = afero.NewOsFs()
 
-	repoURL := fmt.Sprintf("%s://%s%s/%s/%s", scheme, repoHost, repoPath, branch, repository)
-	repoPattern := fmt.Sprintf("%s%s/%s/%s", repoHost, repoPath, branch, repository)
+func (c *client) SetupLocal(ctx context.Context, force bool) error {
+	u, err := url.Parse(fmt.Sprintf("%s://%s", c.c.Options().Scheme(), c.base))
+	if err != nil {
+		return err
+	}
+	u.Path, err = url.JoinPath(u.Path, c.branch, c.repo)
+	if err != nil {
+		return err
+	}
+	if username, password, ok := c.c.Options().BasicAuth(); ok {
+		u.User = url.UserPassword(username, password)
+	}
+
 	repoFile := "/etc/apk/repositories"
-
 	// Check if the repository is already configured
-	file, err := os.ReadFile(repoFile)
-	if err == nil && strings.Contains(string(file), repoPattern) && !force {
+	file, err := afero.ReadFile(fs, repoFile)
+	lookup := fmt.Sprintf("%s%s", u.Host, u.Path)
+	if err == nil && strings.Contains(string(file), lookup) && !force {
 		return packages.ErrAlreadyConfigured
 	}
-
-	if username != "" {
-		repoURL = fmt.Sprintf("%s://%s:%s@%s%s/%s/%s", scheme, username, password, repoHost, repoPath, branch, repository)
-	}
-
+	var lines []string
 	// Remove existing repository entry
-	lines := []string{repoURL}
 	for _, line := range strings.Split(string(file), "\n") {
-		if !strings.Contains(line, repoPattern) {
+		if !strings.Contains(line, lookup) {
 			lines = append(lines, line)
 		}
 	}
-	r, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/key", repoURL), nil)
+	lines = append(lines, u.String())
+	res, err := c.c.Get(ctx, c.path("key"))
 	if err != nil {
 		return fmt.Errorf("failed to get repository key: %w", err)
-	}
-	res, err := http.DefaultClient.Do(r)
-	if err != nil {
-		return fmt.Errorf("failed to get repository key: %w", err)
-	}
-	if res.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("failed to get repository key: %s", string(b))
 	}
 	defer res.Body.Close()
 
@@ -97,17 +91,17 @@ func Setup(ctx context.Context, args SetupArgs, force bool) error {
 	var name string
 	if h := res.Header.Get("Content-Disposition"); h != "" {
 		name = fmt.Sprintf("/etc/apk/keys/%s", strings.TrimPrefix(h, "attachment; filename="))
-		if err := os.Remove(fmt.Sprintf("/etc/apk/keys/%s", name)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := fs.Remove(fmt.Sprintf("/etc/apk/keys/%s", name)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("failed to remove repository key: %s", err)
 		}
 	}
 	if name == "" {
 		return fmt.Errorf("failed to get repository key: missing Content-Disposition header")
 	}
-	if err = os.WriteFile(name, pk, 0644); err != nil {
+	if err = afero.WriteFile(fs, name, pk, 0644); err != nil {
 		return fmt.Errorf("failed to write repository key file: %w", err)
 	}
-	if err = os.WriteFile(repoFile, []byte(strings.Join(lines, "\n")), 0644); err != nil {
+	if err = afero.WriteFile(fs, repoFile, []byte(strings.Join(lines, "\n")), 0644); err != nil {
 		return fmt.Errorf("failed to write sources.list file: %w", err)
 	}
 

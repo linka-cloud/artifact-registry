@@ -57,6 +57,8 @@ type options struct {
 	clientID  string
 	clientCA  *x509.CertPool
 
+	debug bool
+
 	// creds are valid only for proxy
 	creds *creds
 
@@ -87,15 +89,19 @@ func (o options) apply(ctx context.Context, r *remote.Repository) {
 		r.PlainHTTP = o.plainHTTP
 		return
 	}
+	t := http.RoundTripper(&http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: o.insecure,
+			ClientCAs:          o.clientCA,
+		},
+	})
+	if o.debug {
+		t = DebugTransport(t)
+	}
 	c := &auth.Client{
 		ClientID: o.clientID,
 		Client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: o.insecure,
-					ClientCAs:          o.clientCA,
-				},
-			},
+			Transport: t,
 		},
 		// expectedHostAddress is of form ipaddr:port
 		Credential: auth.StaticCredential(o.host, auth.Credential{
@@ -167,5 +173,11 @@ func WithProxyUser(user string) Option {
 func WithProxyPassword(password string) Option {
 	return func(o *options) {
 		o.proxy.creds.password = password
+	}
+}
+
+func WithDebug() Option {
+	return func(o *options) {
+		o.debug = true
 	}
 }

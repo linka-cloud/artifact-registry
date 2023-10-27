@@ -51,7 +51,7 @@ if [ -n "${USER}" ]; then
     REPO_AUTH="${SCHEME}://${USER}:${PASSWORD}@${REPO_HOST}${REPO_PATH}"
     echo "machine ${REPO} login $USER password $PASSWORD" > "/etc/apt/auth.conf.d/${REPO_NAME}.conf"
 else
-    REPO_AUTH="${SCHEME}://${REPO_HOST}${REPO_PATH}/${DIST}/${COMPONENT}"
+    REPO_AUTH="${SCHEME}://${REPO_HOST}${REPO_PATH}"
 fi
 
 curl -s "${REPO_AUTH}/repository.key" -o "/etc/apt/trusted.gpg.d/${REPO_NAME}.asc"

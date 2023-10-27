@@ -80,6 +80,8 @@ var (
 	proxyUser     string
 	proxyPassword string
 
+	debug bool
+
 	cmd = &cobra.Command{
 		Use:          "artifact-registry (repository)",
 		Args:         cobra.MaximumNArgs(1),
@@ -97,6 +99,9 @@ var (
 				registry.WithProxy(proxyAddr),
 				registry.WithProxyUser(proxyUser),
 				registry.WithProxyPassword(proxyPassword),
+			}
+			if debug {
+				ropts = append(ropts, registry.WithDebug())
 			}
 			if noHTTPS {
 				ropts = append(ropts, registry.WithPlainHTTP())
@@ -177,6 +182,12 @@ func main() {
 	cmd.Flags().StringVar(&proxyClientCA, "proxy-client-ca", env.Get[string](EnvProxyClientCA), "proxy tls client certificate authority [$"+EnvProxyClientCA+"]")
 	cmd.Flags().StringVar(&proxyUser, "proxy-user", env.GetDefault(EnvProxyUser, proxyUser), "proxy registry user [$"+EnvProxyUser+"]")
 	cmd.Flags().StringVar(&proxyPassword, "proxy-password", env.GetDefault(EnvProxyPassword, proxyPassword), "proxy registry password [$"+EnvProxyPassword+"]")
+
+	cmd.Flags().BoolVarP(&debug, "debug", "d", false, "enable debug logging")
+
+	if debug {
+		logger.SetDefault(logger.StandardLogger().SetLevel(logger.DebugLevel))
+	}
 
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)

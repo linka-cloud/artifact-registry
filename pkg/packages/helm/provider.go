@@ -16,11 +16,9 @@ package helm
 
 import (
 	"context"
-	_ "embed"
 	"io"
 	"net/http"
 	"strings"
-	"text/template"
 
 	"github.com/gorilla/mux"
 	"go.linka.cloud/grpc-toolkit/logger"
@@ -29,14 +27,7 @@ import (
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
 
-//go:embed setup.sh
-var script string
-
 const Name = "helm"
-
-var (
-	scriptTemplate = template.Must(template.New("setup.sh").Parse(script))
-)
 
 var _ packages.Provider = (*provider)(nil)
 
@@ -54,7 +45,7 @@ func (p *provider) Repository() storage.Repository {
 	return &repo{}
 }
 
-func (p *provider) setup(repo string) http.HandlerFunc {
+func (p *provider) setup(_ string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		if _, err := storage.FromContext(ctx).Stat(ctx, RepositoryPublicKey); err != nil {
@@ -62,8 +53,15 @@ func (p *provider) setup(repo string) http.HandlerFunc {
 			return
 		}
 		user, pass, _ := r.BasicAuth()
+		repo := mux.Vars(r)["repo"]
+		var name string
+		if repo != "" {
+			name = strings.NewReplacer("/", "-").Replace(repo)
+		} else {
+			name = strings.NewReplacer("/", "-", ".", "-").Replace(strings.TrimPrefix(strings.Split(r.Host, ":")[0], Name+"."))
+		}
 		args := SetupArgs{
-			Name:     strings.Replace(repo, "/", "-", -1),
+			Name:     name,
 			User:     user,
 			Password: pass,
 			Scheme:   packages.Scheme(r),

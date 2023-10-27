@@ -15,10 +15,6 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
-	"io"
-	"net/http"
 	"time"
 
 	"github.com/ghodss/yaml"
@@ -39,29 +35,12 @@ var (
 		Args:    cobra.ExactArgs(1),
 		GroupID: repoGroup.ID,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			u := urlWithType() + "/_repositories/" + repository
-			if repository == "" {
-				u = urlWithType() + "/_repositories"
-			}
-			req, err := http.NewRequestWithContext(cmd.Context(), http.MethodGet, u, nil)
+			c, err := api.NewClient(registry, repository, opts...)
 			if err != nil {
 				return err
 			}
-			req.SetBasicAuth(user, pass)
-			res, err := client().Do(req)
+			repos, err := c.Repositories(cmd.Context())
 			if err != nil {
-				return err
-			}
-			defer res.Body.Close()
-			if res.StatusCode != http.StatusOK {
-				b, err := io.ReadAll(res.Body)
-				if err != nil {
-					return err
-				}
-				return errors.New(string(b))
-			}
-			var repos []api.Repository
-			if err := json.NewDecoder(res.Body).Decode(&repos); err != nil {
 				return err
 			}
 			type Repo struct {
@@ -74,7 +53,7 @@ var (
 				MetadataFiles int64      `json:"metadataFiles" print:"METADATA FILES"`
 				MetadataSize  int64      `json:"metadataSize" print:"METADATA SIZE"`
 			}
-			out := slices.Map(repos, func(v api.Repository) Repo {
+			out := slices.Map(repos, func(v *api.Repository) Repo {
 				return Repo{
 					Image:         v.Name + ":" + v.Type,
 					Type:          v.Type,

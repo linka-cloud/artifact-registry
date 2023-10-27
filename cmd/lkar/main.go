@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"fmt"
 	"os"
@@ -25,6 +26,9 @@ import (
 	"go.linka.cloud/grpc-toolkit/logger"
 	"go.linka.cloud/printer"
 	"oras.land/oras-go/v2/registry/remote/credentials"
+
+	artifact_registry "go.linka.cloud/artifact-registry"
+	hclient "go.linka.cloud/artifact-registry/pkg/http/client"
 )
 
 var (
@@ -45,6 +49,10 @@ var (
 	credsStore *credentials.DynamicStore
 	caPool     *x509.CertPool
 
+	opts []hclient.Option
+
+	debug bool
+
 	rootCmd = &cobra.Command{
 		Use:               "lkar",
 		SilenceUsage:      true,
@@ -53,6 +61,9 @@ var (
 )
 
 func setup(cmd *cobra.Command, args []string) error {
+	if debug {
+		logger.SetDefault(logger.StandardLogger().SetLevel(logger.DebugLevel))
+	}
 	if caFile != "" {
 		caPool = x509.NewCertPool()
 		b, err := os.ReadFile(caFile)
@@ -62,19 +73,17 @@ func setup(cmd *cobra.Command, args []string) error {
 		if !caPool.AppendCertsFromPEM(b) {
 			return fmt.Errorf("--ca-file: no valid certificates found")
 		}
-	}
-	if len(args) == 0 {
-		return nil
-	}
-	arg := args[0]
-	parts := strings.Split(arg, "/")
-	registry = parts[0]
-	if len(parts) > 1 {
-		repository = strings.Join(parts[1:], "/")
+		opts = append(opts, hclient.WithClientCA(caPool))
 	}
 	var err error
 	if format, err = printer.ParseFormat(output); err != nil {
 		return err
+	}
+	arg := args[0]
+	parts := strings.SplitN(arg, "/", 2)
+	registry = parts[0]
+	if len(parts) > 1 {
+		repository = parts[1]
 	}
 	credsStore, err = credentials.NewStoreFromDocker(credentials.StoreOptions{
 		AllowPlaintextPut: true,
@@ -82,11 +91,25 @@ func setup(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := makeCreds(cmd.Context()); err != nil {
+		return err
+	}
+	opts = append(opts, hclient.WithBasicAuth(user, pass), hclient.WithUserAgent(fmt.Sprintf("lkar/%s", artifact_registry.Version)))
+	if plainHTTP {
+		opts = append(opts, hclient.WithPlainHTTP())
+	}
+	if insecure {
+		opts = append(opts, hclient.WithInsecure())
+	}
+	return nil
+}
+
+func makeCreds(ctx context.Context) error {
 	if user != "" || pass != "" {
 		return nil
 	}
 	// get credentials from the store
-	creds, err := credsStore.Get(cmd.Context(), repoURL())
+	creds, err := credsStore.Get(ctx, repoURL())
 	if err != nil {
 		return err
 	}
@@ -95,7 +118,7 @@ func setup(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	if creds.Username == "" && creds.Password == "" {
-		creds, err = credsStore.Get(cmd.Context(), registry)
+		creds, err = credsStore.Get(ctx, registry)
 		if err != nil {
 			return err
 		}
@@ -123,6 +146,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&caFile, "ca-file", "", "", "CA certificate file")
 	rootCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "k", false, "Do not verify tls certificates")
 	rootCmd.PersistentFlags().BoolVarP(&plainHTTP, "plain-http", "H", false, "Use http instead of https")
+	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug logging")
 
 	logger.StandardLogger().Logger().SetFormatter(clifmt.New(clifmt.NoneTimeFormat))
 	logger.SetDefault(logger.StandardLogger())

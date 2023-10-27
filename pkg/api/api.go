@@ -253,9 +253,8 @@ func listImageRepositories(ctx context.Context, reg registry.Registry, name stri
 
 func (h *handler) ListRepositories(w http.ResponseWriter, r *http.Request) {
 	ctx := auth.Context(r.Context(), r)
-	o := storage.Options(ctx)
 	typ := mux.Vars(r)["type"]
-	reg, err := o.NewRegistry(ctx)
+	reg, err := storage.Options(ctx).NewRegistry(ctx)
 	if err != nil {
 		storage.Error(w, err)
 		return
@@ -300,10 +299,11 @@ func (h *handler) ListRepositories(w http.ResponseWriter, r *http.Request) {
 func (h *handler) ListImageRepositories(w http.ResponseWriter, r *http.Request) {
 	ctx := auth.Context(r.Context(), r)
 	name, typ := mux.Vars(r)["repo"], mux.Vars(r)["type"]
-	if n := storage.Options(ctx).Repo(); name == "" && n != "" {
+	o := storage.Options(ctx)
+	if n := o.Repo(); name == "" && n != "" {
 		name = n
 	}
-	reg, err := storage.Options(ctx).NewRegistry(ctx)
+	reg, err := o.NewRegistry(ctx)
 	if err != nil {
 		storage.Error(w, err)
 		return
@@ -324,7 +324,7 @@ func (h *handler) ListImageRepositories(w http.ResponseWriter, r *http.Request) 
 
 func (h *handler) Packages(w http.ResponseWriter, r *http.Request) {
 	ctx := auth.Context(r.Context(), r)
-	typ, repo := mux.Vars(r)["type"], mux.Vars(r)["repo"]
+	repo, typ := mux.Vars(r)["repo"], mux.Vars(r)["type"]
 	if n := storage.Options(ctx).Repo(); repo == "" && n != "" {
 		repo = n
 	}
@@ -382,8 +382,8 @@ func Init(ctx context.Context, r *mux.Router, domain, repo string) error {
 	// TODO(adphi): we should find a way to protect this to make it only available to the browser
 	r.Path("/_auth/credentials").Methods(http.MethodGet).HandlerFunc(h.Credentials)
 
-	r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListRepositories)
 	if repo == "" {
+		r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListRepositories)
 		r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
 		r.Path("/_repositories/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
 		r.Path("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListRepositories)
@@ -391,6 +391,7 @@ func Init(ctx context.Context, r *mux.Router, domain, repo string) error {
 		r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_packages/{repo:.+}").Methods(http.MethodGet).HandlerFunc(h.Packages)
 		r.Path(fmt.Sprintf("/_packages/{type:%s}/{repo:.+}", tregx)).Methods(http.MethodGet).HandlerFunc(h.Packages)
 	} else {
+		r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
 		r.Path("/_repositories").Methods(http.MethodGet).HandlerFunc(h.ListImageRepositories)
 
 		r.Host(fmt.Sprintf("{type:%s}.%s", tregx, domain)).Path("/_packages").Methods(http.MethodGet).HandlerFunc(h.Packages)

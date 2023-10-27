@@ -16,16 +16,15 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"oras.land/oras-go/v2/registry/remote/auth"
+
+	"go.linka.cloud/artifact-registry/pkg/api"
 )
 
 var authGroup = &cobra.Group{ID: "0_auth", Title: "Authentication Commands:"}
@@ -82,29 +81,12 @@ Log in with username and password in an interactive terminal and no TLS check:
 					return fmt.Errorf("password is required")
 				}
 			}
-			u := urlWithType() + "/_auth/login"
-			if repository != "" {
-				u = urlWithType() + fmt.Sprintf("/_auth/%s/login", repository)
-			}
-			req, err := http.NewRequestWithContext(cmd.Context(), http.MethodGet, u, nil)
+			c, err := api.NewClient(registry, repository, opts...)
 			if err != nil {
 				return err
 			}
-			req.SetBasicAuth(user, pass)
-			res, err := client().Do(req)
-			if err != nil {
+			if err := c.Login(cmd.Context()); err != nil {
 				return err
-			}
-			defer res.Body.Close()
-			if res.StatusCode != http.StatusOK {
-				if res.StatusCode == http.StatusUnauthorized {
-					return errors.New("invalid credentials")
-				}
-				b, err := io.ReadAll(res.Body)
-				if err != nil {
-					return err
-				}
-				return errors.New(string(b))
 			}
 			if err := credsStore.Put(cmd.Context(), repoURL(), auth.Credential{Username: user, Password: pass}); err != nil {
 				return err

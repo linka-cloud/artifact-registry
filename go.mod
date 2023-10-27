@@ -11,23 +11,22 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/sessions v1.2.1
-	github.com/hashicorp/go-version v1.6.0
 	github.com/klauspost/compress v1.16.5
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc5
 	github.com/sassoftware/go-rpmutils v0.2.0
+	github.com/sirupsen/logrus v1.9.3
+	github.com/spf13/afero v1.10.0
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
 	github.com/ulikunitz/xz v0.5.9
 	go.linka.cloud/env v0.0.0-20230215124643-494dd1a27d3c
 	go.linka.cloud/grpc-toolkit v0.4.4-0.20231026145832-5d6b16a2c2a0
 	go.linka.cloud/printer v0.0.0-20231006081618-c2952cf92999
-	go.uber.org/multierr v1.7.0
 	golang.org/x/crypto v0.14.0
 	golang.org/x/sync v0.4.0
 	golang.org/x/term v0.13.0
 	helm.sh/helm/v3 v3.13.1
-	k8s.io/apimachinery v0.28.2
 	oras.land/oras-go/v2 v2.3.1-0.20231002141145-6456d162fb43
 	sigs.k8s.io/yaml v1.3.0
 )
@@ -84,6 +83,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
+	github.com/lithammer/dedent v1.1.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
@@ -105,7 +105,6 @@ require (
 	github.com/redis/go-redis/extra/rediscmd/v9 v9.0.5 // indirect
 	github.com/redis/go-redis/extra/redisotel/v9 v9.0.5 // indirect
 	github.com/redis/go-redis/v9 v9.1.0 // indirect
-	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
@@ -113,7 +112,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.18.0 // indirect
 	go.opentelemetry.io/otel/trace v1.18.0 // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
-	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.12.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
@@ -127,6 +125,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.28.2 // indirect
+	k8s.io/apimachinery v0.28.2 // indirect
 	k8s.io/cli-runtime v0.28.2 // indirect
 	k8s.io/client-go v0.28.2 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect

@@ -47,7 +47,7 @@ func (p *provider) Repository() storage.Repository {
 	return &repo{}
 }
 
-func (p *provider) setup(repo string) http.HandlerFunc {
+func (p *provider) setup(_ string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		s := storage.FromContext(ctx)
@@ -55,10 +55,16 @@ func (p *provider) setup(repo string) http.HandlerFunc {
 			storage.Error(w, err)
 			return
 		}
-		dist, component := mux.Vars(r)["distribution"], mux.Vars(r)["component"]
+		repo, dist, component := mux.Vars(r)["repo"], mux.Vars(r)["distribution"], mux.Vars(r)["component"]
+		var name string
+		if repo != "" {
+			name = strings.NewReplacer("/", "-").Replace(repo)
+		} else {
+			name = strings.NewReplacer("/", "-", ".", "-").Replace(strings.TrimPrefix(strings.Split(r.Host, ":")[0], Name+"."))
+		}
 		user, pass, _ := r.BasicAuth()
 		args := SetupArgs{
-			Name:      strings.Replace(repo, "/", "-", -1),
+			Name:      name,
 			User:      user,
 			Password:  pass,
 			Scheme:    packages.Scheme(r),

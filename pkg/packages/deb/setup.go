@@ -18,11 +18,12 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
+	"net/url"
 	"path/filepath"
+	"strings"
 	"text/template"
+
+	"github.com/spf13/afero"
 
 	"go.linka.cloud/artifact-registry/pkg/packages"
 )
@@ -43,44 +44,39 @@ type SetupArgs struct {
 	Component string
 }
 
-func Setup(ctx context.Context, args SetupArgs, force bool) error {
-	rs := filepath.Join("/etc/apt/sources.list.d", args.Name+".list")
-	if _, err := os.Stat(rs); err == nil && !force {
+var fs = afero.NewOsFs()
+
+func (c *client) SetupLocal(ctx context.Context, force bool) error {
+	u, err := url.Parse(fmt.Sprintf("%s://%s", c.c.Options().Scheme(), c.base))
+	if err != nil {
+		return err
+	}
+
+	var name string
+	if c.repository != "" {
+		name = strings.NewReplacer("/", "-").Replace(c.repository)
+	} else {
+		name = strings.NewReplacer("/", "-", ".", "-").Replace(strings.TrimPrefix(strings.Split(u.Host, ":")[0], Name+"."))
+	}
+
+	u.Path, err = url.JoinPath(u.Path, c.distribution, c.component)
+	if err != nil {
+		return err
+	}
+
+	rs := filepath.Join("/etc/apt/sources.list.d", name+".list")
+	if _, err := fs.Stat(rs); err == nil && !force {
 		return packages.ErrAlreadyConfigured
 	}
 
-	repoURL := fmt.Sprintf("%s://%s%s", args.Scheme, args.Host, args.Path)
-
-	var repoAuth string
-	if args.User != "" {
-		repoAuth = fmt.Sprintf("%s://%s:%s@%s%s", args.Scheme, args.User, args.Password, args.Host, args.Path)
-	} else {
-		repoAuth = fmt.Sprintf("%s://%s%s/%s/%s", args.Scheme, args.Host, args.Path, args.Dist, args.Component)
-	}
-
 	// Pull repository key
-	r, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/repository.key", repoAuth), nil)
-	if err != nil {
-		return fmt.Errorf("failed to create repository key request: %w", err)
-	}
-	res, err := http.DefaultClient.Do(r)
+	pub, err := c.Key(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to download repository key: %w", err)
 	}
-	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("failed to download Repository key: %s", string(b))
-	}
-
-	pk, err := io.ReadAll(res.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read repository key data: %w", err)
-	}
-
-	k := filepath.Join("/etc/apt/trusted.gpg.d", args.Name+".asc")
-	if err := os.WriteFile(k, pk, 0644); err != nil {
+	k := filepath.Join("/etc/apt/trusted.gpg.d", name+".asc")
+	if err := afero.WriteFile(fs, k, []byte(pub), 0644); err != nil {
 		return fmt.Errorf("failed to write repository key file: %w", err)
 	}
 
@@ -88,17 +84,17 @@ func Setup(ctx context.Context, args SetupArgs, force bool) error {
 		return err
 	}
 
-	if args.User != "" {
-		authConfig := fmt.Sprintf("machine %s login %s password %s", repoURL, args.User, args.Password)
-		authFile := filepath.Join("/etc/apt/auth.conf.d", args.Name+".conf")
-		if err := os.WriteFile(authFile, []byte(authConfig), 0644); err != nil {
+	if user, pass, ok := c.c.Options().BasicAuth(); ok {
+		authConfig := fmt.Sprintf("machine %s login %s password %s", u.String(), user, pass)
+		authFile := filepath.Join("/etc/apt/auth.conf.d", name+".conf")
+		if err := afero.WriteFile(fs, authFile, []byte(authConfig), 0644); err != nil {
 			return fmt.Errorf("failed to write auth config file: %w", err)
 		}
 	}
 
 	// Add repository to sources.list
-	s := fmt.Sprintf("deb %s %s %s", repoURL, args.Dist, args.Component)
-	if err := os.WriteFile(rs, []byte(s), 0644); err != nil {
+	s := fmt.Sprintf("deb %s://%s %s %s", c.c.Options().Scheme(), c.base, c.distribution, c.component)
+	if err := afero.WriteFile(fs, rs, []byte(s), 0644); err != nil {
 		return fmt.Errorf("failed to write sources.list file: %w", err)
 	}
 	return nil

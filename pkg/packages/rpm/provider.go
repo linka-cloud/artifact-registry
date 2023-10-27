@@ -49,14 +49,19 @@ func (p *provider) Repository() storage.Repository {
 func (p *provider) config(repo string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		name := strings.NewReplacer("/", "-").Replace(repo)
+		var name string
+		if repo != "" {
+			name = strings.NewReplacer("/", "-").Replace(repo)
+		} else {
+			name = strings.NewReplacer("/", "-", ".", "-").Replace(strings.TrimPrefix(strings.Split(r.Host, ":")[0], Name+"."))
+		}
 		if _, err := storage.FromContext(ctx).Stat(ctx, RepositoryPublicKey); err != nil {
 			storage.Error(w, err)
 			return
 		}
 		host := strings.TrimSuffix(r.Host, "/")
 		user, pass, _ := r.BasicAuth()
-		url := fmt.Sprintf("%s://%s/%s", packages.Scheme(r), host, strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".repo"), "/"))
+		url := strings.TrimSuffix(fmt.Sprintf("%s://%s/%s", packages.Scheme(r), host, strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".repo"), "/")), "/")
 
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		if err := repoDefinition(w, name, url, RepositoryPublicKey, user, pass); err != nil {

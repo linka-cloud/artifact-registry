@@ -23,6 +23,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"go.linka.cloud/artifact-registry/pkg/packages"
 	"go.linka.cloud/artifact-registry/pkg/packages/apk"
 	"go.linka.cloud/artifact-registry/pkg/packages/deb"
 	"go.linka.cloud/artifact-registry/pkg/packages/helm"
@@ -31,72 +32,35 @@ import (
 
 func newPkgSetupCmd(typ string) *cobra.Command {
 	var (
-		force bool
-		use   string
-		args  int
-		setup func(ctx context.Context, scheme, name string, args []string) error
+		force  bool
+		use    string
+		args   int
+		client func(ctx context.Context, scheme, name string, args []string) (packages.Setuper, error)
 	)
-	var prefix string
-	switch strings.Split(registry, ".")[0] {
-	case apk.Name, deb.Name, rpm.Name, helm.Name:
-		prefix = "/"
-	default:
-		prefix = "/" + typ + "/"
-	}
 	switch typ {
 	case apk.Name:
 		use = fmt.Sprintf("setup [repository] [branch] [apk-repository]")
 		args = 3
-		setup = func(ctx context.Context, scheme, name string, args []string) error {
-			return apk.Setup(ctx, apk.SetupArgs{
-				User:       user,
-				Password:   pass,
-				Scheme:     scheme,
-				Host:       registry,
-				Path:       prefix + repository,
-				Branch:     args[1],
-				Repository: args[2],
-			}, force)
+		client = func(ctx context.Context, scheme, name string, args []string) (packages.Setuper, error) {
+			return apk.NewClient(registry, repository, args[1], args[2], opts...)
 		}
 	case deb.Name:
 		use = fmt.Sprintf("setup [repository] [distribution] [component]")
 		args = 3
-		setup = func(ctx context.Context, scheme, name string, args []string) error {
-			return deb.Setup(ctx, deb.SetupArgs{
-				User:      user,
-				Password:  pass,
-				Scheme:    scheme,
-				Host:      registry,
-				Path:      prefix + repository,
-				Name:      name,
-				Dist:      args[1],
-				Component: args[2],
-			}, force)
+		client = func(ctx context.Context, scheme, name string, args []string) (packages.Setuper, error) {
+			return deb.NewClient(registry, repository, args[1], args[2], opts...)
 		}
 	case rpm.Name:
 		use = fmt.Sprintf("setup [repository]")
 		args = 1
-		setup = func(ctx context.Context, scheme, name string, args []string) error {
-			return rpm.Setup(ctx, rpm.SetupArgs{
-				User:     user,
-				Password: pass,
-				Scheme:   scheme,
-				Host:     registry,
-				Path:     prefix + repository,
-			}, force)
+		client = func(ctx context.Context, scheme, name string, args []string) (packages.Setuper, error) {
+			return rpm.NewClient(registry, repository, opts...)
 		}
 	case helm.Name:
 		use = fmt.Sprintf("setup [repository]")
 		args = 1
-		setup = func(ctx context.Context, scheme, name string, args []string) error {
-			return helm.Setup(ctx, helm.SetupArgs{
-				User:     user,
-				Password: pass,
-				Scheme:   scheme,
-				Host:     registry,
-				Path:     prefix + repository,
-				Name:     name,
-			}, force)
+		client = func(ctx context.Context, scheme, name string, args []string) (packages.Setuper, error) {
+			return helm.NewClient(registry, repository, opts...)
 		}
 	}
 	cmd := &cobra.Command{
@@ -120,7 +84,11 @@ func newPkgSetupCmd(typ string) *cobra.Command {
 			if repository == "" {
 				name = strings.Replace(strings.Split(registry, ":")[0], ".", "-", -1)
 			}
-			return setup(ctx, scheme, name, args)
+			c, err := client(ctx, scheme, name, args)
+			if err != nil {
+				return err
+			}
+			return c.SetupLocal(ctx, force)
 		},
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "Force setup")

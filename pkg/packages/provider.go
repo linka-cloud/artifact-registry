@@ -48,6 +48,14 @@ func Providers() []string {
 	return ret
 }
 
+func Names() []string {
+	var ret []string
+	for k := range providers {
+		ret = append(ret, k)
+	}
+	return ret
+}
+
 func New(ctx context.Context, name string) (Provider, error) {
 	f, ok := providers[name]
 	if !ok {

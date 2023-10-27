@@ -16,43 +16,17 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"io"
-	"net/http"
-	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/dustin/go-humanize"
 	"go.linka.cloud/grpc-toolkit/logger"
-
-	"go.linka.cloud/artifact-registry/pkg/packages"
 )
 
 func formatSize(v any) string {
 	return humanize.Bytes(uint64(v.(int64)))
-}
-
-func urlWithType(typ ...string) string {
-	base := url()
-	if len(typ) == 0 || strings.HasPrefix(registry, typ[0]+".") {
-		return base
-	}
-	return base + "/" + typ[0]
-}
-
-func urlHasType() bool {
-	return slices.Contains(packages.Providers(), strings.Split(registry, ".")[0])
-}
-
-func url() string {
-	scheme := "https"
-	if plainHTTP {
-		scheme = "http"
-	}
-	return scheme + "://" + registry
 }
 
 func repoURL() string {
@@ -60,17 +34,6 @@ func repoURL() string {
 		return registry
 	}
 	return registry + "/" + repository
-}
-
-func client() *http.Client {
-	return &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: insecure,
-				ClientCAs:          caPool,
-			},
-		},
-	}
 }
 
 func newProgressReader(r io.Reader, size int64) *prw {

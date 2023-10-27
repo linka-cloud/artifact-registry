@@ -15,21 +15,14 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"sort"
 
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	"go.linka.cloud/printer"
 
-	"go.linka.cloud/artifact-registry/pkg/packages/apk"
-	"go.linka.cloud/artifact-registry/pkg/packages/deb"
-	"go.linka.cloud/artifact-registry/pkg/packages/helm"
-	"go.linka.cloud/artifact-registry/pkg/packages/rpm"
+	"go.linka.cloud/artifact-registry/pkg/api"
 	"go.linka.cloud/artifact-registry/pkg/slices"
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
@@ -42,58 +35,13 @@ func newPkgListCmd(typ string) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			u := fmt.Sprintf("%s/_packages", url())
-			if !urlHasType() {
-				u = fmt.Sprintf("%s/%s", u, typ)
-			}
-			if repository != "" {
-				u = fmt.Sprintf("%s/%s", u, repository)
-			}
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+			c, err := api.NewClient(registry, repository, opts...)
 			if err != nil {
 				return err
 			}
-			req.SetBasicAuth(user, pass)
-			res, err := client().Do(req)
+			pkgs, err := c.Packages(ctx, typ)
 			if err != nil {
 				return err
-			}
-			defer res.Body.Close()
-			if res.StatusCode != http.StatusOK {
-				b, err := io.ReadAll(res.Body)
-				if err != nil {
-					return err
-				}
-				return errors.New(string(b))
-			}
-			var pkgs []storage.Artifact
-			switch typ {
-			case apk.Name:
-				var p []*apk.Package
-				if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
-					return err
-				}
-				pkgs = storage.AsArtifact(p)
-			case deb.Name:
-				var p []*deb.Package
-				if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
-					return err
-				}
-				pkgs = storage.AsArtifact(p)
-			case rpm.Name:
-				var p []*rpm.Package
-				if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
-					return err
-				}
-				pkgs = storage.AsArtifact(p)
-			case helm.Name:
-				var p []*helm.Package
-				if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
-					return err
-				}
-				pkgs = storage.AsArtifact(p)
-			default:
-				return fmt.Errorf("unexpected package type %q", args[0])
 			}
 
 			type Package struct {
