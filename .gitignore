@@ -4,6 +4,7 @@ tmp
 bin
 **/node_modules
 **/build
+!**/.gitkeep
 docs
 
 dist/
