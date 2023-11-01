@@ -1,0 +1,42 @@
+name: Tests and Build Chart
+
+on:
+  push:
+    branches: [ "*" ]
+    tags: [ "helm/*" ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  tests:
+    name: Helm Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        # fetching all tags is required for the Makefile to compute the right version
+        fetch-depth: 0
+
+    - name: Run tests
+      run: git --no-pager diff --exit-code HEAD~1 HEAD helm/** || make helm-tests
+
+  release:
+    name: Release Helm Chart
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.ref, 'refs/tags/helm/')
+    needs:
+    - tests
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        # fetching all tags is required for the Makefile to compute the right version
+        fetch-depth: 0
+
+    - name: Release Helm Chart
+      env:
+        REPO_USER: ${{ secrets.REPOSITORIES_ACCESS_USER }}
+        REPO_PASSWORD: ${{ secrets.REPOSITORIES_ACCESS_TOKEN }}
+      run: make helm-release
