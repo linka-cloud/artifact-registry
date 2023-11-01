@@ -28,8 +28,8 @@ import (
 var _ packages.Client = (*client)(nil)
 
 func NewClient(registry, repository, branch, repo string, opts ...hclient.Option) (packages.Client, error) {
-	if registry == "" || branch == "" || repo == "" {
-		return nil, fmt.Errorf("registry, branch and repo are required")
+	if registry == "" {
+		return nil, fmt.Errorf("registry, is required")
 	}
 	var base string
 	if strings.HasPrefix(registry, Name+".") {
@@ -57,6 +57,9 @@ type client struct {
 }
 
 func (c *client) Key(ctx context.Context) (string, error) {
+	if c.branch == "" || c.repo == "" {
+		return "", fmt.Errorf("branch and repo, are required")
+	}
 	res, err := c.c.Get(ctx, c.path(c.branch, c.repo, "key"))
 	if err != nil {
 		return "", err
@@ -73,6 +76,9 @@ func (c *client) Key(ctx context.Context) (string, error) {
 }
 
 func (c *client) SetupScript(ctx context.Context) (string, error) {
+	if c.branch == "" || c.repo == "" {
+		return "", fmt.Errorf("branch and repo, are required")
+	}
 	res, err := c.c.Get(ctx, c.path(c.branch, c.repo, "setup"))
 	if err != nil {
 		return "", err
@@ -89,6 +95,9 @@ func (c *client) SetupScript(ctx context.Context) (string, error) {
 }
 
 func (c *client) Push(ctx context.Context, r io.Reader) error {
+	if c.branch == "" || c.repo == "" {
+		return fmt.Errorf("branch and repo, are required")
+	}
 	_, err := c.c.Put(ctx, c.path(c.branch, c.repo, "push"), r)
 	return err
 }

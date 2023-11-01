@@ -28,8 +28,8 @@ import (
 var _ packages.Client = (*client)(nil)
 
 func NewClient(registry, repository, distribution, component string, opts ...hclient.Option) (packages.Client, error) {
-	if registry == "" || distribution == "" || component == "" {
-		return nil, fmt.Errorf("registry, distribution and component are required")
+	if registry == "" {
+		return nil, fmt.Errorf("registry, is required")
 	}
 	var base string
 	if strings.HasPrefix(registry, Name+".") {
@@ -71,6 +71,9 @@ func (c *client) Key(ctx context.Context) (string, error) {
 }
 
 func (c *client) SetupScript(ctx context.Context) (string, error) {
+	if c.distribution == "" || c.component == "" {
+		return "", fmt.Errorf("distribution and component, are required")
+	}
 	res, err := c.c.Get(ctx, c.path(c.distribution, c.component, "setup"))
 	if err != nil {
 		return "", err
@@ -87,6 +90,9 @@ func (c *client) SetupScript(ctx context.Context) (string, error) {
 }
 
 func (c *client) Push(ctx context.Context, r io.Reader) error {
+	if c.distribution == "" || c.component == "" {
+		return fmt.Errorf("distribution and component, are required")
+	}
 	_, err := c.c.Put(ctx, c.path("pool", c.distribution, c.component, "push"), r)
 	return err
 }

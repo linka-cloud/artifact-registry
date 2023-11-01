@@ -48,12 +48,6 @@ func TestClientURL(t *testing.T) {
 			wantErr:    true,
 		},
 		{
-			name:     "invalid branch",
-			registry: "example.org",
-			repo:     "main",
-			wantErr:  true,
-		},
-		{
 			name:     "without repo",
 			registry: "example.org",
 			branch:   "stable",

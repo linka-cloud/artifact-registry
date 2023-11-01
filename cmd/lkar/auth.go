@@ -25,6 +25,7 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 
 	"go.linka.cloud/artifact-registry/pkg/api"
+	hclient "go.linka.cloud/artifact-registry/pkg/http/client"
 )
 
 var authGroup = &cobra.Group{ID: "0_auth", Title: "Authentication Commands:"}
@@ -81,7 +82,7 @@ Log in with username and password in an interactive terminal and no TLS check:
 					return fmt.Errorf("password is required")
 				}
 			}
-			c, err := api.NewClient(registry, repository, opts...)
+			c, err := api.NewClient(registry, repository, append(opts, hclient.WithBasicAuth(user, pass))...)
 			if err != nil {
 				return err
 			}
@@ -99,6 +100,7 @@ Log in with username and password in an interactive terminal and no TLS check:
 		Short:   "Logout from an Artifact Registry repository",
 		GroupID: authGroup.ID,
 		Args:    cobra.ExactArgs(1),
+		PreRunE: setup,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			creds, err := credsStore.Get(cmd.Context(), repoURL())
 			if err != nil {
