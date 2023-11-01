@@ -40,7 +40,7 @@ jobs:
           ${{ runner.os }}-tests-
 
     - name: Run tests
-      run: git --no-pager diff --exit-code HEAD~1 HEAD **/**.go || make tests
+      run: make tests
 
   build:
     name: Build
