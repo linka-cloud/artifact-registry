@@ -32,6 +32,21 @@ GORELEASER_URL := https://github.com/goreleaser/goreleaser/releases/download/$(G
 HELM_VERSION := v3.13.1
 HELM_URL := https://get.helm.sh/helm-$(HELM_VERSION)-$(OS)-$(ARCH).tar.gz
 
+ifeq ($(OS),darwin)
+	TRIVY_OS := macOS
+else
+	TRIVY_OS := Linux
+endif
+
+ifeq ($(ARCH),amd64)
+	TRIVY_ARCH := 64bit
+else
+	TRIVY_ARCH := ARM64
+endif
+
+TRIVY_VERSION := 0.46.1
+TRIVY_URL := https://github.com/aquasecurity/trivy/releases/download/v$(TRIVY_VERSION)/trivy_$(TRIVY_VERSION)_$(TRIVY_OS)-$(TRIVY_ARCH).tar.gz
+
 show-os:
 	@echo $(OS)
 
@@ -50,6 +65,7 @@ export PATH := $(BIN):$(PATH)
 bin:
 	@mkdir -p $(BIN)
 	@curl -sL $(GORELEASER_URL) | tar -C $(BIN) -xz goreleaser
+	@curl -sL $(TRIVY_URL) | tar -C $(BIN) -xz trivy
 	@curl -sL $(HELM_URL) | tar -C $(BIN) -xz --strip-components 1 "$(OS)-$(ARCH)/helm"
 	@helm plugin list | grep unittest 2>&1 >/dev/null || helm plugin install https://github.com/helm-unittest/helm-unittest.git
 
@@ -97,7 +113,7 @@ DOCKER_BUILDX_ARGS := build --pull --load --build-arg VERSION=$(VERSION)
 
 docker: docker-build docker-scan docker-push
 
-docker-scan:
+docker-scan: bin
 	@trivy image --severity "HIGH,CRITICAL" --exit-code 100 $(REPOSITORY)/$(PROJECT):$(VERSION)
 
 .PHONY: docker-build

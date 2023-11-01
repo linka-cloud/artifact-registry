@@ -147,6 +147,9 @@ jobs:
     - name: Build Docker images
       run: make docker-build
 
+    - name: Scan Docker images
+      run: make docker-scan
+
     - name: Push Docker images
       if: github.ref == 'refs/heads/main'
       run: make docker-push
