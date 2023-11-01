@@ -71,7 +71,7 @@ func TestClientURL(t *testing.T) {
 			registry: "example.org",
 			branch:   "stable",
 			repo:     "main",
-			url:      "https://example.org/apk/key",
+			url:      "https://example.org/apk/stable/main/key",
 			fn: func(ctx context.Context, c *client) error {
 				_, err := c.Key(ctx)
 				return err
@@ -82,7 +82,7 @@ func TestClientURL(t *testing.T) {
 			registry: "apk.example.org",
 			branch:   "stable",
 			repo:     "main",
-			url:      "https://apk.example.org/key",
+			url:      "https://apk.example.org/stable/main/key",
 			fn: func(ctx context.Context, c *client) error {
 				_, err := c.Key(ctx)
 				return err
@@ -93,7 +93,7 @@ func TestClientURL(t *testing.T) {
 			registry: "deb.example.org",
 			branch:   "stable",
 			repo:     "main",
-			url:      "https://deb.example.org/apk/key",
+			url:      "https://deb.example.org/apk/stable/main/key",
 			fn: func(ctx context.Context, c *client) error {
 				_, err := c.Key(ctx)
 				return err
@@ -105,7 +105,7 @@ func TestClientURL(t *testing.T) {
 			repository: "my-repo",
 			branch:     "stable",
 			repo:       "main",
-			url:        "https://example.org/apk/my-repo/key",
+			url:        "https://example.org/apk/my-repo/stable/main/key",
 			fn: func(ctx context.Context, c *client) error {
 				_, err := c.Key(ctx)
 				return err
@@ -117,7 +117,7 @@ func TestClientURL(t *testing.T) {
 			repository: "my-repo",
 			branch:     "stable",
 			repo:       "main",
-			url:        "https://apk.example.org/my-repo/key",
+			url:        "https://apk.example.org/my-repo/stable/main/key",
 			fn: func(ctx context.Context, c *client) error {
 				_, err := c.Key(ctx)
 				return err
@@ -129,7 +129,7 @@ func TestClientURL(t *testing.T) {
 			repository: "my-repo",
 			branch:     "stable",
 			repo:       "main",
-			url:        "https://deb.example.org/apk/my-repo/key",
+			url:        "https://deb.example.org/apk/my-repo/stable/main/key",
 			fn: func(ctx context.Context, c *client) error {
 				_, err := c.Key(ctx)
 				return err

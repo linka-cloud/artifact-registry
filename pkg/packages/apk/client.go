@@ -57,7 +57,7 @@ type client struct {
 }
 
 func (c *client) Key(ctx context.Context) (string, error) {
-	res, err := c.c.Get(ctx, c.path("key"))
+	res, err := c.c.Get(ctx, c.path(c.branch, c.repo, "key"))
 	if err != nil {
 		return "", err
 	}
