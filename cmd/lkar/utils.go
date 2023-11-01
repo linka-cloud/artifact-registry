@@ -71,17 +71,17 @@ func (p *prw) Run(ctx context.Context) {
 	tk := time.NewTicker(time.Second)
 	last := 0
 	b := p.Progress()
-	logger.C(ctx).Infof("%s / %d%% transfered (%s/s)", humanize.Bytes(uint64(b)), int(float64(b)/float64(p.size)*100), humanize.Bytes(uint64(b-last)))
+	logger.C(ctx).Infof("%s / %d%% transferred (%s/s)", humanize.Bytes(uint64(b)), int(float64(b)/float64(p.size)*100), humanize.Bytes(uint64(b-last)))
 	last = b
 	for {
 		select {
 		case <-tk.C:
 			b := p.Progress()
-			logger.C(ctx).Infof("%s / %d%% transfered (%s/s)", humanize.Bytes(uint64(b)), int(float64(b)/float64(p.size)*100), humanize.Bytes(uint64(b-last)))
+			logger.C(ctx).Infof("%s / %d%% transferred (%s/s)", humanize.Bytes(uint64(b)), int(float64(b)/float64(p.size)*100), humanize.Bytes(uint64(b-last)))
 			last = b
 		case <-p.closed:
 			b := p.Progress()
-			logger.C(ctx).Infof("%s / %d%% transfered (%s/s)", humanize.Bytes(uint64(b)), int(float64(b)/float64(p.size)*100), humanize.Bytes(uint64(b-last)))
+			logger.C(ctx).Infof("%s / %d%% transferred (%s/s)", humanize.Bytes(uint64(b)), int(float64(b)/float64(p.size)*100), humanize.Bytes(uint64(b-last)))
 			return
 		case <-ctx.Done():
 			return
