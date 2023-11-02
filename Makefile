@@ -11,11 +11,15 @@ TAG = $(shell git describe --tags --exact-match 2> /dev/null)
 VERSION_SUFFIX = $(shell git diff --quiet || echo "-dev")
 VERSION = $(shell git describe --tags --exact-match 2> /dev/null || echo "`git describe --tags $$(git rev-list --tags --max-count=1) 2> /dev/null || echo v0.0.0`-`git rev-parse --short HEAD`")$(VERSION_SUFFIX)
 
-CHART_TAG = $(shell git describe --tags --match="helm/*" HEAD 2>/dev/null | sed 's|helm/||')
-ifneq ($(CHART_TAG),)
-	CHART_VERSION = $(CHART_TAG)
-else
+CHART_VERSION = $(shell git describe --tags --match="helm/*" HEAD 2>/dev/null | sed 's|helm/||')
+ifeq ($(CHART_VERSION),)
 	CHART_VERSION = "0.0.0"
+endif
+
+ifneq ($(TAG),)
+	APP_VERSION = $(TAG)
+else
+	APP_VERSION = $(shell git describe --tags --abbrev=0 HEAD^ 2> /dev/null || echo "v0.0.0")
 endif
 
 COMMIT = $(shell git diff --quiet && git rev-parse --short HEAD || echo "$$(git rev-parse --short HEAD)-dirty")
@@ -57,7 +61,7 @@ show-commit:
 	@echo $(COMMIT) $(COMMIT_DATE)
 
 show-chart-version:
-	@echo $(CHART_VERSION)
+	@echo chart: $(CHART_VERSION) app: $(APP_VERSION)
 
 BIN := $(PWD)/bin
 export PATH := $(BIN):$(PATH)
@@ -75,7 +79,7 @@ tests:
 
 .PHONY: helm-version
 helm-version:
-	@sed helm/artifact-registry/Chart.in.yaml -e 's|{{ CHART_VERSION }}|$(CHART_VERSION)|' -e 's|{{ APP_VERSION }}|$(TAG)|' > helm/artifact-registry/Chart.yaml
+	@sed helm/artifact-registry/Chart.in.yaml -e 's|{{ CHART_VERSION }}|$(CHART_VERSION)|' -e 's|{{ APP_VERSION }}|$(APP_VERSION)|' > helm/artifact-registry/Chart.yaml
 
 helm-tests: bin helm-version
 	@helm unittest helm/artifact-registry
@@ -96,7 +100,7 @@ build-go:
 
 install: build-ui
 	@go generate ./...
-	@go install $(BUILD_ARGS) ./cmd/artifact-registry
+	@go install $(BUILD_ARGS) ./cmd/lkard
 	@go install $(BUILD_ARGS) ./cmd/lkar
 
 .PHONY: helm
