@@ -95,8 +95,6 @@ func NewStorage(ctx context.Context, name string, repo Repository) (Storage, err
 
 func (s *storage) Stat(ctx context.Context, file string) (ArtifactInfo, error) {
 	logger.C(ctx).Infof("stat %s", file)
-	s.rlock(ctx)
-	defer s.runlock(ctx)
 	desc, err := s.find(ctx, file)
 	if err != nil {
 		return nil, err
@@ -107,8 +105,6 @@ func (s *storage) Stat(ctx context.Context, file string) (ArtifactInfo, error) {
 
 func (s *storage) Open(ctx context.Context, path string) (io.ReadCloser, error) {
 	logger.C(ctx).Infof("opening %s", path)
-	s.rlock(ctx)
-	defer s.runlock(ctx)
 	if k, _ := s.repo.KeyNames(); path == k || path == "" {
 		return nil, fmt.Errorf("%s: %w", path, os.ErrNotExist)
 	}
@@ -268,8 +264,6 @@ func (s *storage) Delete(ctx context.Context, name string) error {
 
 func (s *storage) Artifacts(ctx context.Context) ([]Artifact, error) {
 	logger.C(ctx).Infof("listing artifacts")
-	s.rlock(ctx)
-	defer s.runlock(ctx)
 	m, err := s.manifest(ctx)
 	if err != nil {
 		return nil, err
@@ -294,8 +288,6 @@ func (s *storage) ServeFile(w http.ResponseWriter, r *http.Request, path string)
 	}
 	ctx := r.Context()
 
-	s.rlock(ctx)
-	defer s.runlock(ctx)
 	logger.C(ctx).Infof("serving %s", path)
 	desc, err := s.find(ctx, path)
 	if err != nil {
@@ -320,8 +312,6 @@ func (s *storage) ServeFile(w http.ResponseWriter, r *http.Request, path string)
 
 func (s *storage) Size(ctx context.Context) (int64, error) {
 	logger.C(ctx).Infof("computing storage size")
-	s.rlock(ctx)
-	defer s.runlock(ctx)
 	m, err := s.manifest(ctx)
 	if err != nil {
 		return 0, err
@@ -543,14 +533,6 @@ func (s *storage) lock(ctx context.Context) {
 
 func (s *storage) unlock(ctx context.Context) {
 	lock.Unlock(ctx, s.ref)
-}
-
-func (s *storage) rlock(ctx context.Context) {
-	lock.RLock(ctx, s.ref)
-}
-
-func (s *storage) runlock(ctx context.Context) {
-	lock.RUnlock(ctx, s.ref)
 }
 
 func (s *storage) artifactName(a Artifact) string {
