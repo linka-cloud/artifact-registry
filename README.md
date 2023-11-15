@@ -1,11 +1,11 @@
 <p align="center">
-    <img alt="LK Artifact Registry" src="ui/src/img/lkar-no-background.png" width='720px'/>
+    <img alt="LK Artifact Registry" src="docs/assets/lkar-no-background.png" width='720px'/>
 </p>
 
 
 # LK Artifact Registry
 
-[![PkgGoDev](https://pkg.go.dev/badge/go.linka.cloud/artifact-registry)](https://pkg.go.dev/go.linka.cloud/artifact-registry) 
+[![PkgGoDev](https://pkg.go.dev/badge/go.linka.cloud/artifact-registry)](https://pkg.go.dev/go.linka.cloud/artifact-registry)
 [![Go Report Card](https://goreportcard.com/badge/go.linka.cloud/artifact-registry)](https://goreportcard.com/report/go.linka.cloud/artifact-registry)
 
 *Distribute your artifacts to your end users without any additional administration or maintenance costs.*
@@ -24,78 +24,93 @@ It has two main parts:
 
 The following package formats are supported:
 
-- deb
-- rpm
-- apk
-- helm
-- ... (more to come)
+- <img alt="deb packages" style="vertical-align:middle" src="docs/assets/deb.svg" width='32px'/> <a href='docs/packages/deb.md'>deb</a>
 
-## Quick start (evaluation only)
+- <img alt="rpm packages" style="vertical-align:middle" src="docs/assets/rpm.png" width='32px'/> <a href='docs/packages/rpm.md'>rpm</a>
 
-Let's start by deploying a docker registry (without authentication), the artifact registry and an alpine based client to test it:
+- <img alt="apk packages" style="vertical-align:middle" src="docs/assets/apk.png" width='32px'/> <a href='docs/packages/apk.md'>apk</a>
 
-```yaml
-version: '3.7'
-services:
-  registry:
-    image: registry:2
-  artifact-registry:
-    container_name: artifact-registry
-    image: linkacloud/artifact-registry:dev
-    environment:
-      ARTIFACT_REGISTRY_AES_KEY: "noop"
-    command:
-    - --backend=registry:5000
-    - --no-https
-    ports:
-    - "9887:9887"
-  artifact-registry-client:
-    container_name: artifact-registry-client
-    image: linkacloud/artifact-registry:dev
-    init: true
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-    - sleep infinity
-```
+- <img alt="helm packages" style="vertical-align:middle" src="docs/assets/helm.svg" width='32px'/> <a href='docs/packages/helm.md'>helm</a>
 
-```bash
-curl https://raw.githubusercontent.com/linka-cloud/artifact-registry/main/docker-compose.yaml | docker compose -f - up -d
-```
+- ... more to come
 
-Now, let's get some packages:
+## Features
 
-```bash
-docker exec -it artifact-registry-client sh -c "apk fetch --no-cache -o /tmp -R curl jq"
-```
+### Deployment Modes
 
-Upload them to the registry:
+The registry can be configured in different modes:
 
-```bash
-docker exec -it artifact-registry-client sh -c "find /tmp -name '*.apk' -exec lkar apk push --plain-http artifact-registry:9887/test v3.18 main {} \;"
-# remove any existing apk repository and cache
-docker exec -it artifact-registry-client sh -c "rm -rf /tmp/* && rm -rf /var/cache/apk/* && rm -rf /etc/apk/repositories"
-```
+- Multi Repository Mode (default):
 
-Setup artifact-registry as repository:
-
-```bash
-docker exec -it artifact-registry-client sh -c "lkar apk setup --plain-http artifact-registry:9887/test v3.18 main"
-```
-
-And finally, install the packages:
-
-```bash
-docker exec -it artifact-registry-client sh -c "apk add --no-cache curl jq"
-```
+  The multi-repositories mode uses one oci-image per repository.
+  It is useful when you are you want to have a different repository for each of your projects.
 
 
-Clean up:
+- Single Repository Mode:
 
-```bash
-curl https://raw.githubusercontent.com/linka-cloud/artifact-registry/main/docker-compose.yaml | docker compose -f - down --volumes --remove-orphans
-```
+  The single-repository mode uses only one oci-image as storage backend.
+  It is useful when you want to distribute all your packages from a single place.
+
+  > To configure this mode, you need to set the `lkard --repo` flag or the `config.backend.repo` helm value to the name of the repository you want to use.
+
+It can also be configured to serve the repositories as sub-path or sub-domain.
+
+- Sub-path Mode (default):
+  The sub-path mode uses a different sub-path for each repository types.
+  For example, the *deb* repository will be served from `example.com/deb` and the *rpm* repository from `example.com/rpm`.
+
+
+- Sub-domain Mode:
+
+  The sub-domain mode uses a different sub-domain for each repository types.
+  For example, the *deb* repository will be served from `deb.example.com` and the *rpm* repository from `rpm.example.com`.
+
+  > To configure this mode, you need to set the `lkard --domain` flag or the `config.domain` helm value to the domain name you want to use
+  and create the DNS entries pointing to the registry.
+
+### Registry Proxy support
+
+The artifact-registry has built-in support for registry proxies.
+
+> ⚠️ If you intend to use the registry with `docker.io` as backend, it is highly recommended to use a registry pull-through cache/proxy like [docker.io](https://hub.docker.com/_/registry) or [harbor](https://goharbor.io/)...
+> otherwise you can be sure that the artifact-registry ip will be banned.
+
+
+Command line:
+
+    The proxy is configuratble using the following flags:
+
+    ```
+    --proxy string             proxy backend registry hostname (and port if not 443 or 80) [$ARTIFACT_REGISTRY_PROXY]
+    --proxy-client-ca string   proxy tls client certificate authority [$ARTIFACT_REGISTRY_PROXY_CLIENT_CA]
+    --proxy-insecure           disable proxy registry client tls verification [$ARTIFACT_REGISTRY_PROXY_INSECURE]
+    --proxy-no-https           disable proxy registry client https [$ARTIFACT_REGISTRY_PROXY_NO_HTTPS]
+    --proxy-password string    proxy registry password [$ARTIFACT_REGISTRY_PROXY_PASSWORD]
+    --proxy-user string        proxy registry user [$ARTIFACT_REGISTRY_PROXY_USER]
+    ```
+
+Helm:
+
+    The proxy is configuratble using the following helm values:
+
+    | Key                                        | Description                 |
+    |--------------------------------------------|-----------------------------|
+    | config.proxy.host                          | Proxy hostname              |
+    | config.proxy.insecure                      | Disable proxy TLS verify    |
+    | config.proxy.plainHTTP                     | Use HTTP for proxy          |
+    | config.proxy.clientCA                      | Proxy CA secret             |
+    | config.proxy.username                      | Proxy username              |
+    | config.proxy.password                      | Proxy password              |
+
+
+For more information, see the [lkard reference](docs/reference/lkard/lkard.md) and the [helm chart's README](helm/artifact-registry/README.md).
+
 
 ## Getting started
+
+### Evaluating the registry
+
+See the [Getting Started](./docs/getting-started.md) guide for a quick introduction to the registry.
 
 ### Deploying the registry
 
@@ -121,7 +136,6 @@ See the [Chart's README](./helm/artifact-registry/README.md) for the available c
 <!--- ### Using the registry --->
 
 <!--- TODO(adphi): add instructions for installing the client --->
-
 
 <!--- TODO(adphi): add lkard and lkar usage --->
 

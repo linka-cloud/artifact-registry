@@ -5,10 +5,10 @@ bin
 **/node_modules
 **/build
 !**/.gitkeep
-docs
 
 dist/
 completions/
 pkg/http_errors
 pkg/packages/npm
 helm/artifact-registry/Chart.yaml
+docs/registries

@@ -58,11 +58,11 @@ config:
   # domain is the domain name used for the registry.
   # If set, the repositories will also be available as subdomains, e.g.
   # deb.example.com for the repository deb.
-  # domain: "registry.example.org"
+  # domain: "example.org"
 
   # port is the port used for the registry.
   port: 9887
-  # tagArtifact will create tags for each artifact as artifact-registry subpath if enabled
+  # tagArtifact will create tags for each artifact as artifact-registry sub-path if enabled
   # e.g. registry.example.org/user/my-registry/my-artifact
   # It is not supported by all backends, e.g. docker.io
   tagArtifacts: false

@@ -19,7 +19,9 @@ import (
 )
 
 var (
-	DefaultTTL = 5 * time.Minute
+	// DefaultTTL is the default TTL for cache items.
+	// It matches the default TTL of docker.io registry.
+	DefaultTTL = 6 * time.Hour
 	d          = New()
 )
 

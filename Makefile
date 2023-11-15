@@ -143,11 +143,13 @@ completions:
 		go run ./cmd/lkar completion $$shell > completions/lkar.$$shell; \
 	done
 
+CLI_DOCS := $(PWD)/docs/reference
+
 .PHONY: cli-docs
 cli-docs:
-	@rm -rf ./docs/{lkar,lkard}
-	@go run -tags=docs ./cmd/lkar docs ./docs/lkar
-	@go run -tags=docs ./cmd/lkard docs ./docs/lkard
+	@rm -rf $(CLI_DOCS)/{lkar,lkard}
+	@go run -tags=docs ./cmd/lkar docs $(CLI_DOCS)/lkar
+	@go run -tags=docs ./cmd/lkard docs $(CLI_DOCS)/lkard
 
 PHONY: build-snapshot
 build-snapshot:  bin build-ui
@@ -164,4 +166,3 @@ build: bin build-ui
 .PHONY: release
 release: bin build-ui
 	@VERSION=$(VERSION) REPO=$(GITHUB_REPO) goreleaser release --clean --parallelism 8
-
