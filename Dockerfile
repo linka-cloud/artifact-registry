@@ -50,7 +50,7 @@ RUN make build-go
 
 FROM alpine:latest
 
-RUN apk --no-cache add ca-certificates
+RUN apk upgrade --no-cache && apk --no-cache add ca-certificates
 
 COPY --from=go-builder /app/bin/lkard /usr/local/bin/lkard
 COPY --from=go-builder /app/bin/lkar /usr/local/bin/lkar
