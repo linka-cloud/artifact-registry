@@ -133,11 +133,14 @@ helm upgrade \
 See the [Chart's README](./helm/artifact-registry/README.md) for the available configuration options.
 
 
-<!--- ### Using the registry --->
-
 <!--- TODO(adphi): add instructions for installing the client --->
 
-<!--- TODO(adphi): add lkard and lkar usage --->
+
+### Using the registry
+
+See the [documentation](docs/README.md) for more information about the registry usage.
+
+<!--- TODO(adphi): no seriously... add some minimal presentation... --->
 
 
 ## Acknowledgements
