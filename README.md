@@ -72,7 +72,7 @@ It can also be configured to serve the repositories as sub-path or sub-domain.
 
 The artifact-registry has built-in support for registry proxies.
 
-> ⚠️ If you intend to use the registry with `docker.io` as backend, it is highly recommended to use a registry pull-through cache/proxy like [docker.io](https://hub.docker.com/_/registry) or [harbor](https://goharbor.io/)...
+> ⚠️ If you intend to use the registry with `docker.io` as backend, it is highly recommended to use a registry pull-through cache/proxy like [docker.io/registry](https://hub.docker.com/_/registry) or [harbor](https://goharbor.io/)...
 > otherwise you can be sure that the artifact-registry ip will be banned.
 
 
