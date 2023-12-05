@@ -77,6 +77,7 @@ jobs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
+          ui/node_modules
           /tmp/.buildx-cache
         key: ${{ runner.os }}-build-${{ github.sha }}
         restore-keys: |
@@ -182,6 +183,7 @@ jobs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
+          ui/node_modules
           /tmp/.buildx-cache
         key: ${{ runner.os }}-build-${{ github.sha }}
         restore-keys: |
