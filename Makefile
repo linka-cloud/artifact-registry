@@ -7,7 +7,7 @@ REPOSITORY = linkacloud
 
 UI := $(PWD)/ui
 
-TAG = $(shell git describe --tags --exact-match 2> /dev/null)
+TAG = $(shell git describe --tags --exact-match --match="v*" 2> /dev/null)
 VERSION_SUFFIX = $(shell git diff --quiet || echo "-dev")
 VERSION = $(shell git describe --tags --match="v*" --exact-match 2> /dev/null || echo "`git describe --tags --match="v*" $$(git rev-list --tags --max-count=1) 2> /dev/null || echo v0.0.0`-`git rev-parse --short HEAD`")$(VERSION_SUFFIX)
 
