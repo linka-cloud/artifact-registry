@@ -53,6 +53,10 @@ jobs:
         # fetching all tags is required for the Makefile to compute the right version
         fetch-depth: 0
 
+    - name: Remote helm tags
+      run: |
+        git tag --list |grep "helm/"|xargs git tag --delete
+
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
@@ -171,6 +175,10 @@ jobs:
       with:
         # fetching all tags is required for the Makefile to compute the right version
         fetch-depth: 0
+
+    - name: Remote helm tags
+      run: |
+        git tag --list |grep "helm/"|xargs git tag --delete
 
     - name: Set up Go
       uses: actions/setup-go@v2
