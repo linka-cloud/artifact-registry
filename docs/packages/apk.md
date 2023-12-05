@@ -43,13 +43,13 @@ lkar login artifact-registry.example.org/<image>
 #### Subdomain Single
 
 ```
-lkar login apk.example.com
+lkar login apk.example.org
 ```
 
 #### Subdomain Multi
 
 ```
-lkar login apk.example.com/<image>
+lkar login apk.example.org/<image>
 ```
 
 
@@ -58,25 +58,25 @@ To setup the APK registry on the local machine, run the following command:
 #### Subpath Single
 
 ```
-lkar apk setup artifact-registry.example.com <branch> <repository>
+lkar apk setup artifact-registry.example.org <branch> <repository>
 ```
 
 #### Subpath Multi
 
 ```
-lkar apk setup artifact-registry.example.com/<image> <branch> <repository>
+lkar apk setup artifact-registry.example.org/<image> <branch> <repository>
 ```
 
 #### Subdomain Single
 
 ```
-lkar apk setup apk.example.com <branch> <repository>
+lkar apk setup apk.example.org <branch> <repository>
 ```
 
 #### Subdomain Multi
 
 ```
-lkar apk setup apk.example.com/<image> <branch> <repository>
+lkar apk setup apk.example.org/<image> <branch> <repository>
 ```
 
 ### curl
@@ -92,25 +92,25 @@ To register the Alpine registry using the repository script, run the following c
 #### Subpath Single
 
 ```
-curl -s https://artifact-registry.example.com/apk/<branch>/<repository>/setup | sh
+curl -s https://artifact-registry.example.org/apk/<branch>/<repository>/setup | sh
 ```
 
 #### Subpath Multi
 
 ```
-curl -s https://artifact-registry.example.com/<image>/apk/<branch>/<repository>/setup | sh
+curl -s https://artifact-registry.example.org/<image>/apk/<branch>/<repository>/setup | sh
 ```
 
 #### Subdomain Single
 
 ```
-curl -s https://apk.example.com/<branch>/<repository>/setup | sh
+curl -s https://apk.example.org/<branch>/<repository>/setup | sh
 ```
 
 #### Subdomain Multi
 
 ```
-curl -s https://apk.example.com/<image>/<branch>/<repository>/setup | sh
+curl -s https://apk.example.org/<image>/<branch>/<repository>/setup | sh
 ```
 
 ### Manually
@@ -126,25 +126,25 @@ To register the Alpine registry add the url to the list of known apk sources (`/
 #### Subpath Single
 
 ```
-https://artifact-registry.example.com/apk/<branch>/<repository>
+https://artifact-registry.example.org/apk/<branch>/<repository>
 ```
 
 #### Subpath Multi
 
 ```
-https://artifact-registry.example.com/<image>/apk/<branch>/<repository>
+https://artifact-registry.example.org/<image>/apk/<branch>/<repository>
 ```
 
 #### Subdomain Single
 
 ```
-https://apk.example.com/<branch>/<repository>
+https://apk.example.org/<branch>/<repository>
 ```
 
 #### Subdomain Multi
 
 ```
-https://apk.example.com/<image>/<branch>/<repository>
+https://apk.example.org/<image>/<branch>/<repository>
 ```
 
 
@@ -154,13 +154,13 @@ From the `/etc/apk/keys/` directory, download the public key:
 #### Subpath
 
 ```shell
-curl -JO https://artifact-registry.example.com/apk/key
+curl -JO https://artifact-registry.example.org/apk/key
 ```
 
 #### Subdomain
 
 ```shell
-curl -JO https://apk.example.com/key
+curl -JO https://apk.example.org/key
 ```
 
 Afterward, update the local package index:
@@ -179,25 +179,25 @@ To publish an APK package, run the following command:
 #### Subpath Single
 
 ```
-lkar apk push artifact-registry.example.com <branch> <repository> path/to/file.apk
+lkar apk push artifact-registry.example.org <branch> <repository> path/to/file.apk
 ```
 
 #### Subpath Multi
 
 ```
-lkar apk push artifact-registry.example.com/<image> <branch> <repository> path/to/file.apk
+lkar apk push artifact-registry.example.org/<image> <branch> <repository> path/to/file.apk
 ```
 
 #### Subdomain Single
 
 ```
-lkar apk push apk.example.com <branch> <repository> path/to/file.apk
+lkar apk push apk.example.org <branch> <repository> path/to/file.apk
 ```
 
 #### Subdomain Multi
 
 ```
-lkar apk push apk.example.com/<image> <branch> <repository> path/to/file.apk
+lkar apk push apk.example.org/<image> <branch> <repository> path/to/file.apk
 ```
 
 ### curl
@@ -208,7 +208,7 @@ To publish an APK package, perform an HTTP `PUT` operation with the package cont
 #### Subpath Single
 
 ```
-https://artifact-registry.example.com/apk/<branch>/<repository>/push
+https://artifact-registry.example.org/apk/<branch>/<repository>/push
 ```
 
 Example request using HTTP Basic authentication:
@@ -216,13 +216,13 @@ Example request using HTTP Basic authentication:
 ```shell
 curl --user username:password_or_token \
      --upload-file path/to/file.apk \
-     https://artifact-registry.example.com/apk/v3.17/main
+     https://artifact-registry.example.org/apk/v3.17/main
 ```
 
 #### Subpath Multi
 
 ```
-https://artifact-registry.example.com/<image>/apk/<branch>/<repository>
+https://artifact-registry.example.org/<image>/apk/<branch>/<repository>
 ```
 
 Example request using HTTP Basic authentication:
@@ -230,14 +230,14 @@ Example request using HTTP Basic authentication:
 ```shell
 curl --user username:password_or_token \
      --upload-file path/to/file.apk \
-     https://artifact-registry.example.com/user/image/apk/v3.17/main
+     https://artifact-registry.example.org/user/image/apk/v3.17/main
 ```
 
 
 #### Subdomain Single
 
 ```
-https://apk.example.com/<branch>/<repository>
+https://apk.example.org/<branch>/<repository>
 ```
 
 Example request using HTTP Basic authentication:
@@ -251,7 +251,7 @@ curl --user username:password_or_token \
 #### Subdomain Multi
 
 ```
-https://apk.example.com/<image>/<branch>/<repository>
+https://apk.example.org/<image>/<branch>/<repository>
 ```
 
 Example request using HTTP Basic authentication:
@@ -273,13 +273,13 @@ To delete an APK package, run the following command:
 First retrieve the path to package you want to delete:
 
 ```shell
-lkar apk ls apk.example.com <branch> <repository>
+lkar apk ls apk.example.org <branch> <repository>
 ```
 
 Then use the path to delete the package:
 
 ```shell
-lkar apk rm artifact-registry.example.com <path>
+lkar apk rm artifact-registry.example.org <path>
 ```
 
 #### Subpath Multi
@@ -287,13 +287,13 @@ lkar apk rm artifact-registry.example.com <path>
 First retrieve the path to package you want to delete:
 
 ```shell
-lkar apk ls artifact-registry.example.com/<image> <branch> <repository>
+lkar apk ls artifact-registry.example.org/<image> <branch> <repository>
 ```
 
 Then use the path to delete the package:
 
 ```shell
-lkar apk rm artifact-registry.example.com/<image> <path>
+lkar apk rm artifact-registry.example.org/<image> <path>
 ```
 
 #### Subdomain Single
@@ -301,13 +301,13 @@ lkar apk rm artifact-registry.example.com/<image> <path>
 First retrieve the path to package you want to delete:
 
 ```shell
-lkar apk ls apk.example.com <branch> <repository>
+lkar apk ls apk.example.org <branch> <repository>
 ```
 
 Then use the path to delete the package:
 
 ```shell
-lkar apk rm apk.example.com <path>
+lkar apk rm apk.example.org <path>
 ```
 
 #### Subdomain Multi
@@ -315,13 +315,13 @@ lkar apk rm apk.example.com <path>
 First retrieve the path to package you want to delete:
 
 ```shell
-lkar apk ls apk.example.com/<image> <branch> <repository>
+lkar apk ls apk.example.org/<image> <branch> <repository>
 ```
 
 Then use the path to delete the package:
 
 ```shell
-lkar apk rm apk.example.com/<image> <path>
+lkar apk rm apk.example.org/<image> <path>
 ```
 
 ### curl

@@ -43,13 +43,13 @@ lkar login artifact-registry.example.org/<image>
 #### Subdomain Single
 
 ```
-lkar login deb.example.com
+lkar login deb.example.org
 ```
 
 #### Subdomain Multi
 
 ```
-lkar login deb.example.com/<image>
+lkar login deb.example.org/<image>
 ```
 
 
@@ -58,25 +58,25 @@ To setup the DEB registry on the local machine, run the following command:
 #### Subpath Single
 
 ```
-lkar deb setup artifact-registry.example.com <distribution> <component>
+lkar deb setup artifact-registry.example.org <distribution> <component>
 ```
 
 #### Subpath Multi
 
 ```
-lkar deb setup artifact-registry.example.com/<image> <distribution> <component>
+lkar deb setup artifact-registry.example.org/<image> <distribution> <component>
 ```
 
 #### Subdomain Single
 
 ```
-lkar deb setup deb.example.com <distribution> <component>
+lkar deb setup deb.example.org <distribution> <component>
 ```
 
 #### Subdomain Multi
 
 ```
-lkar deb setup deb.example.com/<image> <distribution> <component>
+lkar deb setup deb.example.org/<image> <distribution> <component>
 ```
 
 ### curl
@@ -92,25 +92,25 @@ To register the repository using the generated script, run the following command
 #### Subpath Single
 
 ```
-curl -s https://artifact-registry.example.com/deb/<distribution>/<component>/setup | sh
+curl -s https://artifact-registry.example.org/deb/<distribution>/<component>/setup | sh
 ```
 
 #### Subpath Multi
 
 ```
-curl -s https://artifact-registry.example.com/<image>/deb/<distribution>/<component>/setup | sh
+curl -s https://artifact-registry.example.org/<image>/deb/<distribution>/<component>/setup | sh
 ```
 
 #### Subdomain Single
 
 ```
-curl -s https://deb.example.com/<distribution>/<component>/setup | sh
+curl -s https://deb.example.org/<distribution>/<component>/setup | sh
 ```
 
 #### Subdomain Multi
 
 ```
-curl -s https://deb.example.com/<image>/<distribution>/<component>/setup | sh
+curl -s https://deb.example.org/<image>/<distribution>/<component>/setup | sh
 ```
 
 ### Manually
@@ -126,25 +126,25 @@ To register the repository add the url to the list of known deb sources (`/etc/a
 #### Subpath Single
 
 ```
-echo "deb https://artifact-registry.example.com/deb <distribution> <component>" | sudo tee -a /etc/apt/sources.list
+echo "deb https://artifact-registry.example.org/deb <distribution> <component>" | sudo tee -a /etc/apt/sources.list
 ```
 
 #### Subpath Multi
 
 ```
-echo "deb https://artifact-registry.example.com/<image>/deb <distribution> <component>" | sudo tee -a /etc/apt/sources.list
+echo "deb https://artifact-registry.example.org/<image>/deb <distribution> <component>" | sudo tee -a /etc/apt/sources.list
 ```
 
 #### Subdomain Single
 
 ```
-echo "deb https://deb.example.com <distribution> <component>" | sudo tee -a /etc/apt/sources.list
+echo "deb https://deb.example.org <distribution> <component>" | sudo tee -a /etc/apt/sources.list
 ```
 
 #### Subdomain Multi
 
 ```
-echo "deb https://deb.example.com/<image> <distribution> <component>" | sudo tee -a /etc/apt/sources.list
+echo "deb https://deb.example.org/<image> <distribution> <component>" | sudo tee -a /etc/apt/sources.list
 ```
 
 
@@ -153,13 +153,13 @@ The registry files are signed with a GPG key which must be known to apt.
 #### Subpath
 
 ```shell
-sudo curl  https://artifact-registry.example.com/deb/repository.key -o /etc/apt/trusted.gpg.d/example.asc
+sudo curl  https://artifact-registry.example.org/deb/repository.key -o /etc/apt/trusted.gpg.d/example.asc
 ```
 
 #### Subdomain
 
 ```shell
-sudo curl  https://deb.example.com/repository.key -o /etc/apt/trusted.gpg.d/example.asc
+sudo curl  https://deb.example.org/repository.key -o /etc/apt/trusted.gpg.d/example.asc
 ```
 
 Afterward, update the local package index:
@@ -178,25 +178,25 @@ To publish an DEB package, run the following command:
 #### Subpath Single
 
 ```
-lkar deb push artifact-registry.example.com <distribution> <component> path/to/file.deb
+lkar deb push artifact-registry.example.org <distribution> <component> path/to/file.deb
 ```
 
 #### Subpath Multi
 
 ```
-lkar deb push artifact-registry.example.com/<image> <distribution> <component> path/to/file.deb
+lkar deb push artifact-registry.example.org/<image> <distribution> <component> path/to/file.deb
 ```
 
 #### Subdomain Single
 
 ```
-lkar deb push deb.example.com <distribution> <component> path/to/file.deb
+lkar deb push deb.example.org <distribution> <component> path/to/file.deb
 ```
 
 #### Subdomain Multi
 
 ```
-lkar deb push deb.example.com/<image> <distribution> <component> path/to/file.deb
+lkar deb push deb.example.org/<image> <distribution> <component> path/to/file.deb
 ```
 
 ### curl
@@ -207,7 +207,7 @@ To publish an DEB package, perform an HTTP `PUT` operation with the package cont
 #### Subpath Single
 
 ```
-https://artifact-registry.example.com/deb/<distribution>/<component>/push
+https://artifact-registry.example.org/deb/<distribution>/<component>/push
 ```
 
 Example request using HTTP Basic authentication:
@@ -215,13 +215,13 @@ Example request using HTTP Basic authentication:
 ```shell
 curl --user username:password_or_token \
      --upload-file path/to/file.deb \
-     https://artifact-registry.example.com/deb/focal/main
+     https://artifact-registry.example.org/deb/focal/main
 ```
 
 #### Subpath Multi
 
 ```
-https://artifact-registry.example.com/<image>/deb/<distribution>/<component>
+https://artifact-registry.example.org/<image>/deb/<distribution>/<component>
 ```
 
 Example request using HTTP Basic authentication:
@@ -229,14 +229,14 @@ Example request using HTTP Basic authentication:
 ```shell
 curl --user username:password_or_token \
      --upload-file path/to/file.deb \
-     https://artifact-registry.example.com/user/image/deb/focal/main
+     https://artifact-registry.example.org/user/image/deb/focal/main
 ```
 
 
 #### Subdomain Single
 
 ```
-https://deb.example.com/<distribution>/<component>
+https://deb.example.org/<distribution>/<component>
 ```
 
 Example request using HTTP Basic authentication:
@@ -250,7 +250,7 @@ curl --user username:password_or_token \
 #### Subdomain Multi
 
 ```
-https://deb.example.com/<image>/<distribution>/<component>
+https://deb.example.org/<image>/<distribution>/<component>
 ```
 
 Example request using HTTP Basic authentication:
@@ -272,13 +272,13 @@ To delete an DEB package, run the following command:
 First retrieve the path to package you want to delete:
 
 ```shell
-lkar deb ls deb.example.com <distribution> <component>
+lkar deb ls deb.example.org <distribution> <component>
 ```
 
 Then use the path to delete the package:
 
 ```shell
-lkar deb rm artifact-registry.example.com <path>
+lkar deb rm artifact-registry.example.org <path>
 ```
 
 #### Subpath Multi
@@ -286,13 +286,13 @@ lkar deb rm artifact-registry.example.com <path>
 First retrieve the path to package you want to delete:
 
 ```shell
-lkar deb ls artifact-registry.example.com/<image> <distribution> <component>
+lkar deb ls artifact-registry.example.org/<image> <distribution> <component>
 ```
 
 Then use the path to delete the package:
 
 ```shell
-lkar deb rm artifact-registry.example.com/<image> <path>
+lkar deb rm artifact-registry.example.org/<image> <path>
 ```
 
 #### Subdomain Single
@@ -300,13 +300,13 @@ lkar deb rm artifact-registry.example.com/<image> <path>
 First retrieve the path to package you want to delete:
 
 ```shell
-lkar deb ls deb.example.com <distribution> <component>
+lkar deb ls deb.example.org <distribution> <component>
 ```
 
 Then use the path to delete the package:
 
 ```shell
-lkar deb rm deb.example.com <path>
+lkar deb rm deb.example.org <path>
 ```
 
 #### Subdomain Multi
@@ -314,13 +314,13 @@ lkar deb rm deb.example.com <path>
 First retrieve the path to package you want to delete:
 
 ```shell
-lkar deb ls deb.example.com/<image> <distribution> <component>
+lkar deb ls deb.example.org/<image> <distribution> <component>
 ```
 
 Then use the path to delete the package:
 
 ```shell
-lkar deb rm deb.example.com/<image> <path>
+lkar deb rm deb.example.org/<image> <path>
 ```
 
 ### curl

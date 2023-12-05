@@ -23,7 +23,7 @@ SCHEME="{{ .Scheme }}"
 REPO_HOST="{{ .Host }}"
 REPO_PATH="{{ .Path }}"
 
-REPO_NAME="$(basename "${REPO_PATH}")"
+REPO_NAME="{{ .Name }}"
 
 already_exists() {
     echo "Repository already configured."
@@ -31,6 +31,10 @@ already_exists() {
 }
 
 [ -n "${DEBUG}" ] && set -x
+
+if  [ -z "${REPO_PATH}" ]; then
+    REPO_PATH="/"
+fi
 
 if [ -n "${USER}" ]; then
     REPO_URL="${SCHEME}://${USER}:${PASSWORD}@${REPO_HOST}${REPO_PATH}"
@@ -49,24 +53,12 @@ if [ -f "/etc/yum.repos.d/${REPO_NAME}.repo" ] && [ "$1" != "--force" ]; then
     exit 1
 fi
 
-if which dnf >/dev/null 2>&1; then
-    PROG=dnf
-else
-    PROG=yum
-fi
-if dnf config-manager --help >/dev/null 2>&1; then
-    HAS_CONFIG_MANAGER=1
+if ! command -v curl > /dev/null; then
+    echo "curl is required to setup the repository."
+    exit 1
 fi
 
-if [ "${PROG}" = "dnf" ] && [ -n "${HAS_CONFIG_MANAGER}" ]; then
-    if ! which curl >/dev/null 2>&1; then
-        echo "curl is required to setup the repository."
-        exit 1
-    fi
-    curl -s "${REPO_URL}.repo" -o "/etc/yum.repos.d/${REPO_NAME}.repo"
-else
-    dnf config-manager --add-repo "${REPO_URL}.repo"
-fi
+curl -s "${REPO_URL}.repo" -o "/etc/yum.repos.d/${REPO_NAME}.repo"
 
 echo "yum setup complete."
 echo "You can now run 'yum update' to update the package list."

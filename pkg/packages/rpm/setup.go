@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -75,7 +74,6 @@ func (c *client) SetupLocal(ctx context.Context, force bool) error {
 	if user, pass, ok := c.c.Options().BasicAuth(); ok {
 		u.User = url.UserPassword(user, pass)
 	}
-	repoURL := u.String()
 
 	// Check if the repository file already exists
 	f := filepath.Join("/etc/yum.repos.d", name+".repo")
@@ -83,29 +81,6 @@ func (c *client) SetupLocal(ctx context.Context, force bool) error {
 		return packages.ErrAlreadyConfigured
 	}
 
-	// Determine the package manager to use (dnf or yum)
-	var prog string
-	if _, err := exec.LookPath("dnf"); err == nil {
-		prog = "dnf"
-	} else {
-		prog = "yum"
-	}
-
-	// Check if the package manager supports config-manager
-	var hasConfigManager bool
-	if prog == "dnf" {
-		if exec.Command(prog, "config-manager", "--help").Run() == nil {
-			hasConfigManager = true
-		}
-	}
-
-	if hasConfigManager {
-		// Use dnf config-manager or yum to add the repository
-		if b, err := exec.CommandContext(ctx, prog, "config-manager", "--add-repo", repoURL+".repo").CombinedOutput(); err != nil {
-			return fmt.Errorf("%s: %s", err, string(b))
-		}
-		return nil
-	}
 	def, err := c.Repo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get repository definition: %w", err)

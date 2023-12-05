@@ -38,13 +38,13 @@ lkar login artifact-registry.example.org/<image>
 #### Subdomain Single
 
 ```
-lkar login helm.example.com
+lkar login helm.example.org
 ```
 
 #### Subdomain Multi
 
 ```
-lkar login helm.example.com/<image>
+lkar login helm.example.org/<image>
 ```
 
 You can then publish a chart by running the following command:
@@ -62,13 +62,13 @@ lkar helm push artifact-registry.example.org/<image> path/to/file.tgz
 #### Subdomain Single
 
 ```
-lkar helm push helm.example.com path/to/file.tgz
+lkar helm push helm.example.org path/to/file.tgz
 ```
 
 #### Subdomain Multi
 
 ```
-lkar helm push helm.example.com/<image> path/to/file.tgz
+lkar helm push helm.example.org/<image> path/to/file.tgz
 ```
 
 ### curl
@@ -78,25 +78,25 @@ To publish a helm Chart, perform an HTTP `PUT` operation with the package conten
 #### Subpath Single
 
 ```shell
-curl --user <username>:<password_or_token> -X PUT --upload-file path/to/file.tgz https://artifact-registry.example.com/helm/push
+curl --user <username>:<password_or_token> -X PUT --upload-file path/to/file.tgz https://artifact-registry.example.org/helm/push
 ```
 
 #### Subpath Multi
 
 ```shell
-curl --user <username>:<password_or_token> -X PUT --upload-file path/to/file.tgz https://artifact-registry.example.com/helm/<image>/push
+curl --user <username>:<password_or_token> -X PUT --upload-file path/to/file.tgz https://artifact-registry.example.org/helm/<image>/push
 ```
 
 #### Subdomain Single
 
 ```shell
-curl --user <username>:<password_or_token> -X PUT --upload-file path/to/file.tgz https://helm.example.com/push
+curl --user <username>:<password_or_token> -X PUT --upload-file path/to/file.tgz https://helm.example.org/push
 ```
 
 #### Subdomain Multi
 
 ```shell
-curl --user <username>:<password_or_token> -X PUT --upload-file path/to/file.tgz https://helm.example.com/<image>/push
+curl --user <username>:<password_or_token> -X PUT --upload-file path/to/file.tgz https://helm.example.org/<image>/push
 ```
 
 ## Install a package
@@ -106,25 +106,25 @@ To install a Helm char from the registry, start by adding the repository to your
 #### Subpath Single
 
 ```shell
-helm repo add  --username <username> --password <password> example https://artifact-registry.example.com/helm
+helm repo add  --username <username> --password <password> example https://artifact-registry.example.org/helm
 ```
 
 #### Subpath Multi
 
 ```shell
-helm repo add  --username <username> --password <password> example https://artifact-registry.example.com/<image>helm
+helm repo add  --username <username> --password <password> example https://artifact-registry.example.org/<image>/helm
 ```
 
 #### Subdomain Single
 
 ```shell
-helm repo add  --username <username> --password <password> example https://helm.example.com
+helm repo add  --username <username> --password <password> example https://helm.example.org
 ```
 
 #### Subdomain Multi
 
 ```shell
-helm repo add  --username <username> --password <password> example https://helm.example.com/<image>
+helm repo add  --username <username> --password <password> example https://helm.example.org/<image>
 ```
 
 You can then install a chart by running the following command:
