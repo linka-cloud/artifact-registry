@@ -109,7 +109,7 @@ type FileMetadata struct {
 }
 
 // NewPackage parses the Alpine package file
-func NewPackage(r io.Reader, branch, repository string, size int64) (*Package, error) {
+func NewPackage(r io.Reader, branch, repository string) (*Package, error) {
 	// Alpine packages are concated .tar.gz streams. Usually the first stream contains the package metadata.
 	reader, err := buffer.CreateHashedBufferFromReader(r)
 	if err != nil {
@@ -161,7 +161,7 @@ func NewPackage(r io.Reader, branch, repository string, size int64) (*Package, e
 				_, _, sha256, _ := reader.Sums()
 				p.reader = reader
 				p.PkgDigest = hex.EncodeToString(sha256)
-				p.PkgSize = size
+				p.PkgSize = reader.Size()
 				p.FilePath = fmt.Sprintf("%s/%s/%s/%s-%s.apk", p.Branch, p.Repo, p.FileMetadata.Architecture, p.PkgName, p.PkgVersion)
 				_, err = reader.Seek(0, io.SeekStart)
 				return p, err

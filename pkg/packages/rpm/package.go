@@ -134,7 +134,7 @@ type Changelog struct {
 	Text   string             `json:"text,omitempty" xml:",chardata"`
 }
 
-func NewPackage(r io.Reader, size int64, key string) (*Package, error) {
+func NewPackage(r io.Reader, key string) (*Package, error) {
 	// sign
 	buf, err := buffer.CreateHashedBufferFromReader(r)
 	if err != nil {
@@ -160,7 +160,7 @@ func NewPackage(r io.Reader, size int64, key string) (*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	pkg.FileSize = size + ssize - seek
+	pkg.FileSize = buf.Size() + ssize - seek
 
 	_, _, sha256, _ := reader.Sums()
 	pkg.HashSHA256 = hex.EncodeToString(sha256)

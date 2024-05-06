@@ -110,11 +110,12 @@ type Metadata struct {
 
 // NewPackage parses the Debian package file
 // https://manpages.debian.org/bullseye/dpkg-dev/deb.5.en.html
-func NewPackage(r io.Reader, distribution, component string, size int64) (*Package, error) {
+func NewPackage(r io.Reader, distribution, component string) (*Package, error) {
 	reader, err := buffer.CreateHashedBufferFromReader(r)
 	if err != nil {
 		return nil, err
 	}
+	size := reader.Size()
 	pkg, err := parsePackage(reader)
 	if err != nil {
 		return nil, err

@@ -112,9 +112,9 @@ func (p *provider) Routes() []*packages.Route {
 		{
 			Method: http.MethodPut,
 			Path:   "/pool/{distribution}/{component}/push",
-			Handler: packages.Push(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
+			Handler: packages.Push(func(r *http.Request, reader io.Reader, key string) (storage.Artifact, error) {
 				distribution, component := mux.Vars(r)["distribution"], mux.Vars(r)["component"]
-				return NewPackage(reader, distribution, component, size)
+				return NewPackage(reader, distribution, component)
 			}),
 		},
 		{

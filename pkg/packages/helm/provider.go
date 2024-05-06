@@ -91,7 +91,7 @@ func (p *provider) Routes() []*packages.Route {
 		{
 			Path:   "/push",
 			Method: http.MethodPut,
-			Handler: packages.Push(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
+			Handler: packages.Push(func(r *http.Request, reader io.Reader, key string) (storage.Artifact, error) {
 				return NewPackage(reader)
 			}),
 		},

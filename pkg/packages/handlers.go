@@ -23,20 +23,18 @@ import (
 	"go.linka.cloud/artifact-registry/pkg/storage"
 )
 
-type ArtifactFactory func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error)
+type ArtifactFactory func(r *http.Request, reader io.Reader, key string) (storage.Artifact, error)
 
 func Push(fn ArtifactFactory) HandlerFunc {
 	return func(_ string) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			var (
-				reader io.ReadCloser
-				size   int64
-			)
-			if file, header, err := r.FormFile("file"); err == nil {
-				reader, size = file, header.Size
+
+			var reader io.ReadCloser
+			if file, _, err := r.FormFile("file"); err == nil {
+				reader = file
 			} else {
-				reader, size = r.Body, r.ContentLength
+				reader = r.Body
 			}
 			defer reader.Close()
 			logger.C(ctx).Debugf("ensuring storage is initialized")
@@ -46,7 +44,7 @@ func Push(fn ArtifactFactory) HandlerFunc {
 				return
 			}
 			logger.C(ctx).Debugf("parsing artifact")
-			pkg, err := fn(r, reader, size, s.Key())
+			pkg, err := fn(r, reader, s.Key())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return

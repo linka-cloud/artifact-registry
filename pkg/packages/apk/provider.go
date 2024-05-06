@@ -107,9 +107,9 @@ func (p *provider) Routes() []*packages.Route {
 		{
 			Method: http.MethodPut,
 			Path:   "/{branch}/{repository}/push",
-			Handler: packages.Push(func(r *http.Request, reader io.Reader, size int64, key string) (storage.Artifact, error) {
+			Handler: packages.Push(func(r *http.Request, reader io.Reader, key string) (storage.Artifact, error) {
 				branch, repo := mux.Vars(r)["branch"], mux.Vars(r)["repository"]
-				return NewPackage(reader, branch, repo, size)
+				return NewPackage(reader, branch, repo)
 			}),
 		},
 		{
