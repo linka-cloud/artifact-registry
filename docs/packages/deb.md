@@ -28,54 +28,62 @@ The following examples use `apt`.
 
 If the registry is private, start by log in the registry:
 
+
 #### Subpath Single
 
-```
+```shell
 lkar login artifact-registry.example.org
 ```
 
+
 #### Subpath Multi
 
-```
+```shell
 lkar login artifact-registry.example.org/<image>
 ```
 
+
 #### Subdomain Single
 
-```
+```shell
 lkar login deb.example.org
 ```
 
+
 #### Subdomain Multi
 
-```
+```shell
 lkar login deb.example.org/<image>
 ```
 
 
 To setup the DEB registry on the local machine, run the following command:
 
+
 #### Subpath Single
 
-```
+```shell
 lkar deb setup artifact-registry.example.org <distribution> <component>
 ```
 
+
 #### Subpath Multi
 
-```
+```shell
 lkar deb setup artifact-registry.example.org/<image> <distribution> <component>
 ```
 
+
 #### Subdomain Single
 
-```
+```shell
 lkar deb setup deb.example.org <distribution> <component>
 ```
 
+
 #### Subdomain Multi
 
-```
+```shell
 lkar deb setup deb.example.org/<image> <distribution> <component>
 ```
 
@@ -84,32 +92,36 @@ lkar deb setup deb.example.org/<image> <distribution> <component>
 If the registry is private, provide credentials in the url:
 
 ```
-https://{username}:{password_or_token}@<url>
+https://<username>:<password_or_token>@<url>
 ```
 
 To register the repository using the generated script, run the following command:
 
+
 #### Subpath Single
 
-```
+```shell
 curl -s https://artifact-registry.example.org/deb/<distribution>/<component>/setup | sh
 ```
 
+
 #### Subpath Multi
 
+```shell
+curl -s https://artifact-registry.example.org/deb/<image>/<distribution>/<component>/setup | sh
 ```
-curl -s https://artifact-registry.example.org/<image>/deb/<distribution>/<component>/setup | sh
-```
+
 
 #### Subdomain Single
 
-```
+```shell
 curl -s https://deb.example.org/<distribution>/<component>/setup | sh
 ```
 
+
 #### Subdomain Multi
 
-```
+```shell
 curl -s https://deb.example.org/<image>/<distribution>/<component>/setup | sh
 ```
 
@@ -123,17 +135,20 @@ https://{username}:{password_or_token}@<url>
 
 To register the repository add the url to the list of known deb sources (`/etc/apt/sources.list`):
 
+
 #### Subpath Single
 
 ```
 echo "deb https://artifact-registry.example.org/deb <distribution> <component>" | sudo tee -a /etc/apt/sources.list
 ```
 
+
 #### Subpath Multi
 
 ```
-echo "deb https://artifact-registry.example.org/<image>/deb <distribution> <component>" | sudo tee -a /etc/apt/sources.list
+echo "deb https://artifact-registry.example.org/deb/<image> <distribution> <component>" | sudo tee -a /etc/apt/sources.list
 ```
+
 
 #### Subdomain Single
 
@@ -141,20 +156,22 @@ echo "deb https://artifact-registry.example.org/<image>/deb <distribution> <comp
 echo "deb https://deb.example.org <distribution> <component>" | sudo tee -a /etc/apt/sources.list
 ```
 
+
 #### Subdomain Multi
 
 ```
 echo "deb https://deb.example.org/<image> <distribution> <component>" | sudo tee -a /etc/apt/sources.list
 ```
 
-
 The registry files are signed with a GPG key which must be known to apt.
+
 
 #### Subpath
 
 ```shell
 sudo curl  https://artifact-registry.example.org/deb/repository.key -o /etc/apt/trusted.gpg.d/example.asc
 ```
+
 
 #### Subdomain
 
@@ -175,27 +192,31 @@ apt update
 
 To publish an DEB package, run the following command:
 
+
 #### Subpath Single
 
-```
+```shell
 lkar deb push artifact-registry.example.org <distribution> <component> path/to/file.deb
 ```
 
+
 #### Subpath Multi
 
-```
+```shell
 lkar deb push artifact-registry.example.org/<image> <distribution> <component> path/to/file.deb
 ```
 
+
 #### Subdomain Single
 
-```
+```shell
 lkar deb push deb.example.org <distribution> <component> path/to/file.deb
 ```
 
+
 #### Subdomain Multi
 
-```
+```shell
 lkar deb push deb.example.org/<image> <distribution> <component> path/to/file.deb
 ```
 
@@ -215,13 +236,14 @@ Example request using HTTP Basic authentication:
 ```shell
 curl --user username:password_or_token \
      --upload-file path/to/file.deb \
-     https://artifact-registry.example.org/deb/focal/main
+     https://artifact-registry.example.org/deb/focal/main/push
 ```
+
 
 #### Subpath Multi
 
 ```
-https://artifact-registry.example.org/<image>/deb/<distribution>/<component>
+https://artifact-registry.example.org/deb/<image>/<distribution>/<component>/push
 ```
 
 Example request using HTTP Basic authentication:
@@ -229,14 +251,14 @@ Example request using HTTP Basic authentication:
 ```shell
 curl --user username:password_or_token \
      --upload-file path/to/file.deb \
-     https://artifact-registry.example.org/user/image/deb/focal/main
+     https://artifact-registry.example.org/deb/user/image/focal/main/push
 ```
 
 
 #### Subdomain Single
 
 ```
-https://deb.example.org/<distribution>/<component>
+https://deb.example.org/<distribution>/<component>/push
 ```
 
 Example request using HTTP Basic authentication:
@@ -244,13 +266,14 @@ Example request using HTTP Basic authentication:
 ```shell
 curl --user username:password_or_token \
      --upload-file path/to/file.deb \
-     https://deb.example.org/focal/main
+     https://deb.example.org/focal/main/push
 ```
+
 
 #### Subdomain Multi
 
 ```
-https://deb.example.org/<image>/<distribution>/<component>
+https://deb.example.org/<image>/<distribution>/<component>/push
 ```
 
 Example request using HTTP Basic authentication:
@@ -258,21 +281,23 @@ Example request using HTTP Basic authentication:
 ```shell
 curl --user username:password_or_token \
      --upload-file path/to/file.deb \
-     https://deb.example.org/user/image/focal/main
+     https://deb.example.org/user/image/focal/main/push
 ```
+
 
 ## Delete a package
 
 ### lkar
 
-To delete an DEB package, run the following command:
+To delete an DEB package, run the following commands:
+
 
 #### Subpath Single
 
 First retrieve the path to package you want to delete:
 
 ```shell
-lkar deb ls deb.example.org <distribution> <component>
+lkar deb ls artifact-registry.example.org <distribution> <component>
 ```
 
 Then use the path to delete the package:
@@ -280,6 +305,7 @@ Then use the path to delete the package:
 ```shell
 lkar deb rm artifact-registry.example.org <path>
 ```
+
 
 #### Subpath Multi
 
@@ -295,6 +321,7 @@ Then use the path to delete the package:
 lkar deb rm artifact-registry.example.org/<image> <path>
 ```
 
+
 #### Subdomain Single
 
 First retrieve the path to package you want to delete:
@@ -308,6 +335,7 @@ Then use the path to delete the package:
 ```shell
 lkar deb rm deb.example.org <path>
 ```
+
 
 #### Subdomain Multi
 
@@ -338,7 +366,7 @@ Then perform an HTTP `DELETE` operation. This will delete the package version to
 file left.
 
 ```
-DELETE https://artifact-registry.example.org/deb/pool/{distribution}/{component}/{architecture}/{filename}
+DELETE https://artifact-registry.example.org/deb/pool/<distribution>/<component>/<architecture>/<filename>
 ```
 
 Example request using HTTP Basic authentication:
@@ -348,19 +376,20 @@ curl --user username:password_or_token -X DELETE \
      https://artifact-registry.example.org/deb/pool/focal/main/test-package-1.0.0.deb
 ```
 
+
 #### Subpath Multi
 
 To delete an DEB package, first retrieve the path to the package in the repository:
 
 ```
-GET https://artifact-registry.example.org/_packages/deb/{image}
+GET https://artifact-registry.example.org/_packages/deb/<image>
 ```
 
 Then perform an HTTP `DELETE` operation. This will delete the package version too if there is no
 file left.
 
 ```
-DELETE https://artifact-registry.example.org/{image}/deb/pool/{distribution}/{component}/{architecture}/{filename}
+DELETE https://artifact-registry.example.org/deb/<image>/pool/<distribution>/<component>/<architecture>/<filename>
 ```
 
 Example request using HTTP Basic authentication:
@@ -369,6 +398,7 @@ Example request using HTTP Basic authentication:
 curl --user username:password_or_token -X DELETE \
      https://artifact-registry.example.org/deb/user/image/pool/focal/main/test-package-1.0.0.deb
 ```
+
 
 #### Subdomain Single
 
@@ -382,7 +412,7 @@ Then perform an HTTP `DELETE` operation. This will delete the package version to
 file left.
 
 ```
-DELETE https://deb.example.org/pool/{distribution}/{component}/{architecture}/{filename}
+DELETE https://deb.example.org/pool/<distribution>/<component>/<architecture>/<filename>
 ```
 
 Example request using HTTP Basic authentication:
@@ -392,19 +422,20 @@ curl --user username:password_or_token -X DELETE \
      https://deb.example.org/pool/focal/main/test-package-1.0.0.deb
 ```
 
+
 #### Subdomain Multi
 
 To delete an DEB package, first retrieve the path to the package in the repository:
 
 ```
-GET https://deb.example.org/_packages/{image}
+GET https://deb.example.org/_packages/<image>
 ```
 
 Then perform an HTTP `DELETE` operation. This will delete the package version too if there is no
 file left.
 
 ```
-DELETE https://deb.example.org/{image}/pool/{distribution}/{component}/{architecture}/{filename}
+DELETE https://deb.example.org/<image>/pool/<distribution>/<component>/<architecture>/<filename>
 ```
 
 Example request using HTTP Basic authentication:
@@ -413,6 +444,8 @@ Example request using HTTP Basic authentication:
 curl --user username:password_or_token -X DELETE \
      https://deb.example.org/user/image/pool/focal/main/test-package-1.0.0.deb
 ```
+
+
 
 ## Install a package
 

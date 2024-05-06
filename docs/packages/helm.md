@@ -23,51 +23,61 @@ Publish a package by running the following command:
 
 If the registry is private, start by log in the registry:
 
+
 #### Subpath Single
 
-```
+```shell
 lkar login artifact-registry.example.org
 ```
 
+
 #### Subpath Multi
 
-```
+```shell
 lkar login artifact-registry.example.org/<image>
 ```
 
+
 #### Subdomain Single
 
-```
+```shell
 lkar login helm.example.org
 ```
 
+
 #### Subdomain Multi
 
-```
+```shell
 lkar login helm.example.org/<image>
 ```
 
 You can then publish a chart by running the following command:
 
-```
+
+#### Subpath Single
+
+```shell
 lkar helm push artifact-registry.example.org path/to/file.tgz
 ```
 
+
 #### Subpath Multi
 
-```
+```shell
 lkar helm push artifact-registry.example.org/<image> path/to/file.tgz
 ```
 
+
 #### Subdomain Single
 
-```
+```shell
 lkar helm push helm.example.org path/to/file.tgz
 ```
 
+
 #### Subdomain Multi
 
-```
+```shell
 lkar helm push helm.example.org/<image> path/to/file.tgz
 ```
 
@@ -75,11 +85,13 @@ lkar helm push helm.example.org/<image> path/to/file.tgz
 
 To publish a helm Chart, perform an HTTP `PUT` operation with the package content in the request body.
 
+
 #### Subpath Single
 
 ```shell
 curl --user <username>:<password_or_token> -X PUT --upload-file path/to/file.tgz https://artifact-registry.example.org/helm/push
 ```
+
 
 #### Subpath Multi
 
@@ -87,11 +99,13 @@ curl --user <username>:<password_or_token> -X PUT --upload-file path/to/file.tgz
 curl --user <username>:<password_or_token> -X PUT --upload-file path/to/file.tgz https://artifact-registry.example.org/helm/<image>/push
 ```
 
+
 #### Subdomain Single
 
 ```shell
 curl --user <username>:<password_or_token> -X PUT --upload-file path/to/file.tgz https://helm.example.org/push
 ```
+
 
 #### Subdomain Multi
 
@@ -103,23 +117,27 @@ curl --user <username>:<password_or_token> -X PUT --upload-file path/to/file.tgz
 
 To install a Helm char from the registry, start by adding the repository to your Helm client:
 
+
 #### Subpath Single
 
 ```shell
 helm repo add  --username <username> --password <password> example https://artifact-registry.example.org/helm
 ```
 
+
 #### Subpath Multi
 
 ```shell
-helm repo add  --username <username> --password <password> example https://artifact-registry.example.org/<image>/helm
+helm repo add  --username <username> --password <password> example https://artifact-registry.example.org/helm/<image>
 ```
+
 
 #### Subdomain Single
 
 ```shell
 helm repo add  --username <username> --password <password> example https://helm.example.org
 ```
+
 
 #### Subdomain Multi
 

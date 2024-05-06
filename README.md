@@ -16,6 +16,9 @@ It uses any compatible oci-registry as backend, for both storage, authentication
 
 It can host as many repositories as you want, all being backed by a single oci-repository (docker image).
 
+For each repository type, it will create an OCI image tag that will reference all the packages and metadata required to serve the packages.
+The tag name will be the repository type, e.g. `deb`, `rpm`, `apk`, `helm`, ...
+
 It has two main parts:
 - lkard: the registry server which expose a small web-ui
 - lkar: the command line client
@@ -133,8 +136,33 @@ helm upgrade \
 See the [Chart's README](./helm/artifact-registry/README.md) for the available configuration options.
 
 
-<!--- TODO(adphi): add instructions for installing the client --->
+### Install lkar (the command line client)
 
+#### Using the pre-built binaries
+
+Download the pre-built binaries from the [releases page](https://github.com/linka-cloud/artifact-registry/releases/latest) and install it in your PATH.
+
+```bash
+VERSION=$(git ls-remote --tags https://github.com/linka-cloud/artifact-registry |cut -d'/' -f 3|grep -v helm|tail -n 1)
+curl -sL "https://github.com/linka-cloud/artifact-registry/releases/download/${VERSION}/lkar_$(uname -s)_$(uname -m).tar.gz" | tar -xvz lkar
+sudo mv lkar /usr/local/bin/
+```
+
+#### Using add-apt-repository
+
+```bash
+sudo apt install -y software-properties-common
+wget -O - https://deb.linka.cloud/repository.key | sudo apt-key add -
+sudo add-apt-repository -y https://deb.linka.cloud
+sudo apt update
+sudo apt install -y lkar
+```
+
+#### Using brew
+
+```bash
+brew install linka-cloud/tap/lkar
+```
 
 ### Using the registry
 

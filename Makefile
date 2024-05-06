@@ -166,3 +166,9 @@ build: bin build-ui
 .PHONY: release
 release: bin build-ui
 	@VERSION=$(VERSION) REPO=$(GITHUB_REPO) goreleaser release --clean --parallelism 8
+
+.PHONY: docs
+docs:
+	@for t in apk deb rpm; do \
+		go run ./docs/gen docs/packages/$$t.tpl.md > docs/packages/$$t.md; \
+	done
