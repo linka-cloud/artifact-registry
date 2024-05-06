@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:alpine as react-builder
+FROM node:alpine AS react-builder
 
 WORKDIR /app
 
@@ -25,7 +25,7 @@ COPY ui/ ./
 RUN yarn build
 
 
-FROM golang:alpine as go-builder
+FROM golang:alpine AS go-builder
 
 WORKDIR /app
 
@@ -48,7 +48,14 @@ RUN apk add --no-cache git make
 
 RUN make build-go
 
-FROM alpine:latest
+FROM alpine:latest AS lkar
+
+RUN apk upgrade --no-cache && apk --no-cache add ca-certificates
+COPY --from=go-builder /app/bin/lkar /usr/local/bin/lkar
+
+ENTRYPOINT ["/usr/local/bin/lkar"]
+
+FROM alpine:latest AS full
 
 RUN apk upgrade --no-cache && apk --no-cache add ca-certificates
 

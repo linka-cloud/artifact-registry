@@ -122,17 +122,22 @@ docker-scan: bin
 
 .PHONY: docker-build
 docker-build:
-	@docker buildx $(DOCKER_BUILDX_ARGS) -t $(REPOSITORY)/$(PROJECT):$(VERSION) -t $(REPOSITORY)/$(PROJECT):dev .
+	@docker buildx $(DOCKER_BUILDX_ARGS) --target full -t $(REPOSITORY)/$(PROJECT):$(VERSION) -t $(REPOSITORY)/$(PROJECT):dev .
+	@docker buildx $(DOCKER_BUILDX_ARGS) --target lkar -t $(REPOSITORY)/lkar:$(VERSION) -t $(REPOSITORY)/lkar:dev .
 ifneq ($(TAG),)
 	@docker image tag $(REPOSITORY)/$(PROJECT):$(VERSION) $(REPOSITORY)/$(PROJECT):latest
+	@docker image tag $(REPOSITORY)/lkar:$(VERSION) $(REPOSITORY)/lkar:latest
 endif
 
 .PHONY: docker-push
 docker-push:
 	@docker image push $(REPOSITORY)/$(PROJECT):$(VERSION)
 	@docker image push $(REPOSITORY)/$(PROJECT):dev
+	@docker image push $(REPOSITORY)/lkar:$(VERSION)
+	@docker image push $(REPOSITORY)/lkar:dev
 ifneq ($(TAG),)
 	@docker image push $(REPOSITORY)/$(PROJECT):latest
+	@docker image push $(REPOSITORY)/lkar:latest
 endif
 
 .PHONY: completions
