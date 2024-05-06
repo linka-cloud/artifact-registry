@@ -77,6 +77,10 @@ archives:
   format_overrides:
   - goos: windows
     format: zip
+  files:
+  - LICENCE
+  - LICENCE-GITEA
+  - completions/*
 - id: lkard
   format: tar.gz
   # this name template makes the OS and Arch compatible with the results of `uname`.
