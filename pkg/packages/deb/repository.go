@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/clearsign"
 	"github.com/ulikunitz/xz"
-	"golang.org/x/crypto/openpgp"
-	"golang.org/x/crypto/openpgp/clearsign"
 
 	"go.linka.cloud/artifact-registry/pkg/buffer"
 	"go.linka.cloud/artifact-registry/pkg/codec"

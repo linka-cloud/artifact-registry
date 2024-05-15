@@ -7,8 +7,8 @@ import (
 	"bytes"
 	"io"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/sassoftware/go-rpmutils"
-	"golang.org/x/crypto/openpgp"
 
 	"go.linka.cloud/artifact-registry/pkg/buffer"
 )
