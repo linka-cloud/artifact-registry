@@ -147,14 +147,14 @@ uploads:
   exts:
   - apk
   custom_artifact_name: true
-  target: https://apk.linka.cloud/v3.17/main/push
+  target: https://apk.linka.cloud/v3.21/main/push
 - name: lkar
   ids:
   - lkar
   exts:
   - apk
   custom_artifact_name: true
-  target: https://apk.linka.cloud/v3.18/main/push
+  target: https://apk.linka.cloud/v3.22/main/push
 - name: lkar
   ids:
   - lkar
@@ -168,21 +168,21 @@ uploads:
   exts:
   - deb
   custom_artifact_name: true
-  target: https://deb.linka.cloud/pool/focal/main/push
+  target: https://deb.linka.cloud/pool/noble/main/push
 - name: lkar
   ids:
   - lkar
   exts:
   - deb
   custom_artifact_name: true
-  target: https://deb.linka.cloud/pool/buster/main/push
+  target: https://deb.linka.cloud/pool/trixie/main/push
 - name: lkar
   ids:
   - lkar
   exts:
   - deb
   custom_artifact_name: true
-  target: https://deb.linka.cloud/pool/bullseye/main/push
+  target: https://deb.linka.cloud/pool/bookworm/main/push
 checksum:
   name_template: 'checksums.txt'
 signs:
