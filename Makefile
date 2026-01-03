@@ -33,8 +33,9 @@ ARCH=$(shell go env GOARCH)
 GORELEASER_VERSION := v1.21.2
 GORELEASER_URL := https://github.com/goreleaser/goreleaser/releases/download/$(GORELEASER_VERSION)/goreleaser_$(shell uname -s)_$(shell uname -m).tar.gz
 
-HELM_VERSION := v3.13.1
+HELM_VERSION := v3.19.3
 HELM_URL := https://get.helm.sh/helm-$(HELM_VERSION)-$(OS)-$(ARCH).tar.gz
+HELM_UNITTEST_VERSION := v0.8.2
 
 ifeq ($(OS),darwin)
 	TRIVY_OS := macOS
@@ -71,7 +72,7 @@ bin:
 	@curl -sL $(GORELEASER_URL) | tar -C $(BIN) -xz goreleaser
 	@curl -sL $(TRIVY_URL) | tar -C $(BIN) -xz trivy
 	@curl -sL $(HELM_URL) | tar -C $(BIN) -xz --strip-components 1 "$(OS)-$(ARCH)/helm"
-	@helm plugin list | grep unittest 2>&1 >/dev/null || helm plugin install https://github.com/helm-unittest/helm-unittest.git
+	@helm plugin list | grep unittest 2>&1 >/dev/null || helm plugin install --version $(HELM_UNITTEST_VERSION) https://github.com/helm-unittest/helm-unittest.git
 
 .PHONY: tests
 tests:

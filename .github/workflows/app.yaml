@@ -19,9 +19,10 @@ jobs:
         fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: "1.25"
+        cache: false
 
     - name: Set up QEMU dependency
       uses: docker/setup-qemu-action@v3
@@ -58,9 +59,10 @@ jobs:
         git tag --list |grep "helm/"|xargs git tag --delete
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: "1.25"
+        cache: false
 
     - name: Set up QEMU dependency
       uses: docker/setup-qemu-action@v3
@@ -123,9 +125,10 @@ jobs:
         fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: "1.25"
+        cache: false
 
     - name: Set up QEMU dependency
       uses: docker/setup-qemu-action@v3
@@ -181,9 +184,10 @@ jobs:
         git tag --list |grep "helm/"|xargs git tag --delete
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: "1.25"
+        cache: false
 
     - name: Share cache with other actions
       uses: actions/cache@v4
@@ -235,9 +239,10 @@ jobs:
         fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: "1.25"
+        cache: false
 
     - name: Set up QEMU dependency
       uses: docker/setup-qemu-action@v3
