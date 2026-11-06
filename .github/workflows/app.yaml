@@ -24,6 +24,9 @@ jobs:
         go-version: "1.25"
         cache: false
 
+    - name: Set up Docker
+      uses: docker/setup-docker-action@v5
+
     - name: Set up QEMU dependency
       uses: docker/setup-qemu-action@v3
 
@@ -54,7 +57,7 @@ jobs:
         # fetching all tags is required for the Makefile to compute the right version
         fetch-depth: 0
 
-    - name: Remote helm tags
+    - name: Remove helm tags
       run: |
         git tag --list |grep "helm/"|xargs git tag --delete
 
@@ -63,6 +66,9 @@ jobs:
       with:
         go-version: "1.25"
         cache: false
+
+    - name: Set up Docker
+      uses: docker/setup-docker-action@v5
 
     - name: Set up QEMU dependency
       uses: docker/setup-qemu-action@v3
@@ -130,6 +136,9 @@ jobs:
         go-version: "1.25"
         cache: false
 
+    - name: Set up Docker
+      uses: docker/setup-docker-action@v5
+
     - name: Set up QEMU dependency
       uses: docker/setup-qemu-action@v3
 
@@ -179,7 +188,7 @@ jobs:
         # fetching all tags is required for the Makefile to compute the right version
         fetch-depth: 0
 
-    - name: Remote helm tags
+    - name: Remove helm tags
       run: |
         git tag --list |grep "helm/"|xargs git tag --delete
 
@@ -243,6 +252,9 @@ jobs:
       with:
         go-version: "1.25"
         cache: false
+
+    - name: Set up Docker
+      uses: docker/setup-docker-action@v5
 
     - name: Set up QEMU dependency
       uses: docker/setup-qemu-action@v3
